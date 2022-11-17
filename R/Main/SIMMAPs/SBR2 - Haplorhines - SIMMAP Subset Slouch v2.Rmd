@@ -1,0 +1,2009 @@
+---
+title: "SBR2 - BDS ms Haplorrhine Analysis for SIMMAPs Plot Code - 062722"
+output: html_notebook
+editor_options: 
+  chunk_output_type: console
+---
+Haplorhine Analysis
+
+Run: SIMMAPS ACE 062522 v1
+	Testing revised data from R2 but running original fitMk program, not parallel
+	Gorillas in strict classification is folivore
+	Predictors:
+		Fol.Non.Fol.Strict
+		Fol.Non.Fol.Per
+		Frug.Non.Frug.Per
+		Social.System.DRclass
+		Social.System.DGT
+		Mating.System
+		GSC >50
+
+```{r}
+
+rm(list=ls())
+
+#install.packages("devtools")
+#library(devtools)
+
+#devtools::install_github("kopperud/slouch")
+library(slouch)
+
+#devtools::install_github("liamrevell/phytools")
+library(treeplyr)
+library(phytools)
+library(optimParallel)
+
+#library(bayou)
+#library(plyr)
+#library(ape)
+#library(viridis)
+options(scipen=999)
+
+#For execution on a local, multicore CPU with excess RAM we recommend calling
+#options(mc.cores = parallel::detectCores()-2)
+
+#Load programs written for R1
+source("/Users/markgrabowski/Library/CloudStorage/GoogleDrive-mark.walter.grabowski@gmail.com/My Drive/Shared with Mac Pro/Brain Size Diet + Social System/SB Revision 1/Programs/make.slouch.simmap.table.v1.R")
+
+source("/Users/markgrabowski/Library/CloudStorage/GoogleDrive-mark.walter.grabowski@gmail.com/My Drive/Shared with Mac Pro/Brain Size Diet + Social System/SB Revision 1/Programs/make.slouch.simmap.AIC.table.R1.v1.R")
+
+source("/Users/markgrabowski/Library/CloudStorage/GoogleDrive-mark.walter.grabowski@gmail.com/My Drive/Shared with Mac Pro/Brain Size Diet + Social System/SB Revision 1/Programs/make.regression.table.R1.R")
+
+source("/Users/markgrabowski/Library/CloudStorage/GoogleDrive-mark.walter.grabowski@gmail.com/My Drive/Shared with Mac Pro/Brain Size Diet + Social System/SB Revision 1/Programs/make.slouch.table.R1.v1.R")
+
+#source("/Volumes/GoogleDrive/My Drive/Shared with Mac Pro/Brain Size Diet + Social System/Programs/fitMk.parallel.LR.R")
+
+load("/Users/markgrabowski/Documents/Academic/Research/Current Projects/Brain Size Diet + Social System/SB Revision 2/Results/SIMMAPS 062522 v1/SIMMAPS/All Primates/WS SIMMAP Only - All Primates - 062522.RData")
+
+```
+
+Subset All Primate Phylogeny
+```{r}
+#Subset out internal nodes
+#old.phy<-BrBo.Diet.DC.GS.SS.AP.trdata
+#new.BrBo.Diet.DC.GS.SS.AP.trdata<-filter(BrBo.Diet.DC.GS.SS.AP.trdata, Suborder=="Strepsirrhini")
+new.BrBo.Diet.DC.GS.SS.AP.trdata<-filter(BrBo.Diet.DC.GS.SS.AP.trdata, Suborder=="Haplorrhini")
+#BrBo.Diet.DC.GS.SS.AP.trdata<-filter(BrBo.Diet.DC.GS.SS.AP.trdata, Parvorder=="Platyrrhini")
+
+
+```
+
+```{r}
+reconstruction.FoDCS.ssgt.ap<-drop.tip.multiSimmap(reconstruction.FoDCS.ssgt.ap, setdiff(BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,new.BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label))
+
+reconstruction.FoDCS.ssgt<-drop.tip.multiSimmap(reconstruction.FoDCS.ssgt, setdiff(BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,new.BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label))
+
+reconstruction.FrDC.ssgt.ap<-drop.tip.multiSimmap(reconstruction.FrDC.ssgt.ap, setdiff(BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,new.BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label))
+
+reconstruction.FrDC.ssgt<-drop.tip.multiSimmap(reconstruction.FrDC.ssgt, setdiff(BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,new.BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label))
+
+reconstruction.FoDC.ssgt.ap<-drop.tip.multiSimmap(reconstruction.FoDC.ssgt.ap, setdiff(BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,new.BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label))
+
+reconstruction.FoDC.ssgt<-drop.tip.multiSimmap(reconstruction.FoDC.ssgt, setdiff(BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,new.BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label))
+
+reconstruction.ssgt.ap<-drop.tip.multiSimmap(reconstruction.ssgt.ap, setdiff(BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,new.BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label))
+
+reconstruction.ssgt<-drop.tip.multiSimmap(reconstruction.ssgt, setdiff(BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,new.BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label))
+
+reconstruction.FoDCS.gsc.ap<-drop.tip.multiSimmap(reconstruction.FoDCS.gsc.ap, setdiff(BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,new.BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label))
+
+reconstruction.FoDCS.gsc<-drop.tip.multiSimmap(reconstruction.FoDCS.gsc, setdiff(BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,new.BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label))
+
+reconstruction.FoDCS.ss.ap<-drop.tip.multiSimmap(reconstruction.FoDCS.ss.ap, setdiff(BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,new.BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label))
+
+reconstruction.FoDCS.ss<-drop.tip.multiSimmap(reconstruction.FoDCS.ss, setdiff(BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,new.BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label))
+
+reconstruction.FoDCS.ms.ap<-drop.tip.multiSimmap(reconstruction.FoDCS.ms.ap, setdiff(BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,new.BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label))
+
+reconstruction.FoDCS.ms<-drop.tip.multiSimmap(reconstruction.FoDCS.ms, setdiff(BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,new.BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label))
+
+reconstruction.FoDCS.ap<-drop.tip.multiSimmap(reconstruction.FoDCS.ap, setdiff(BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,new.BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label))
+
+reconstruction.FoDCS<-drop.tip.multiSimmap(reconstruction.FoDCS, setdiff(BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,new.BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label))
+
+reconstruction.FrDC.gsc.ap<-drop.tip.multiSimmap(reconstruction.FrDC.gsc.ap, setdiff(BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,new.BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label))
+
+reconstruction.FrDC.gsc<-drop.tip.multiSimmap(reconstruction.FrDC.gsc, setdiff(BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,new.BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label))
+
+reconstruction.FrDC.ss.ap<-drop.tip.multiSimmap(reconstruction.FrDC.ss.ap, setdiff(BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,new.BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label))
+
+reconstruction.FrDC.ss<-drop.tip.multiSimmap(reconstruction.FrDC.ss, setdiff(BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,new.BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label))
+
+reconstruction.FrDC.ms.ap<-drop.tip.multiSimmap(reconstruction.FrDC.ms.ap, setdiff(BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,new.BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label))
+
+reconstruction.FrDC.ms<-drop.tip.multiSimmap(reconstruction.FrDC.ms, setdiff(BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,new.BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label))
+
+reconstruction.FoDC.gsc.ap<-drop.tip.multiSimmap(reconstruction.FoDC.gsc.ap, setdiff(BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,new.BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label))
+
+reconstruction.FoDC.gsc<-drop.tip.multiSimmap(reconstruction.FoDC.gsc, setdiff(BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,new.BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label))
+
+reconstruction.FoDC.ss.ap<-drop.tip.multiSimmap(reconstruction.FoDC.ss.ap, setdiff(BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,new.BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label))
+
+reconstruction.FoDC.ss<-drop.tip.multiSimmap(reconstruction.FoDC.ss, setdiff(BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,new.BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label))
+
+reconstruction.FoDC.ms.ap<-drop.tip.multiSimmap(reconstruction.FoDC.ms.ap, setdiff(BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,new.BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label))
+
+reconstruction.FoDC.ms<-drop.tip.multiSimmap(reconstruction.FoDC.ms, setdiff(BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,new.BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label))
+
+reconstruction.FoDC.ap<-drop.tip.multiSimmap(reconstruction.FoDC.ap, setdiff(BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,new.BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label))
+
+reconstruction.FoDC<-drop.tip.multiSimmap(reconstruction.FoDC, setdiff(BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,new.BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label))
+
+reconstruction.FrDC.ap<-drop.tip.multiSimmap(reconstruction.FrDC.ap, setdiff(BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,new.BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label))
+
+reconstruction.FrDC<-drop.tip.multiSimmap(reconstruction.FrDC, setdiff(BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,new.BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label))
+
+reconstruction.gsc.ap<-drop.tip.multiSimmap(reconstruction.gsc.ap, setdiff(BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,new.BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label))
+
+reconstruction.gsc<-drop.tip.multiSimmap(reconstruction.gsc, setdiff(BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,new.BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label))
+
+reconstruction.ss.ap<-drop.tip.multiSimmap(reconstruction.ss.ap, setdiff(BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,new.BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label))
+
+reconstruction.ss<-drop.tip.multiSimmap(reconstruction.ss, setdiff(BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,new.BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label))
+
+reconstruction.ms.ap<-drop.tip.multiSimmap(reconstruction.ms.ap, setdiff(BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,new.BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label))
+
+reconstruction.ms<-drop.tip.multiSimmap(reconstruction.ms, setdiff(BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,new.BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label))
+
+reconstruction.ap<-drop.tip.multiSimmap(reconstruction.ap, setdiff(BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,new.BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label))
+
+```
+
+Change to reduced dataset
+```{r}
+BrBo.Diet.DC.GS.SS.AP.trdata<-new.BrBo.Diet.DC.GS.SS.AP.trdata
+```
+
+
+
+
+Social System Group Types
+Parallel Version
+Strict Folivore Models First
+
+Folivore Non-Folivore Diet Categories
+```{r}
+
+
+```
+
+Folivore Non-Folivore Diet Categories
+```{r}
+#Folivore Diet Categories + Group Size Continuous + Social System GT
+ECV.FoDCS.GS.SSGT.BoM.OURDF<-lapply(reconstruction.FoDCS.ssgt,function(phy){
+  model1<-slouch.fit(phy,
+                     species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                     response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                     random.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Combo.AGS),                                          
+                     fixed.fact = as.factor(paste(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Fol.Non.Fol.Strict ,BrBo.Diet.DC.GS.SS.AP.trdata$dat$Social.System.DGT)),
+                     direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                     mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                     mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                     hl_values = seq(0.0001, max.hl*3, length.out = 50),
+                     vy_values = seq(0.0001, 1, length.out = 50),
+                     hillclimb = FALSE,convergence = 150,
+                     anc_maps = "simmap",
+                     lower = c(0.0001, 0.0001))
+})
+summary(ECV.FoDCS.GS.SSGT.BoM.OURDF)
+
+
+ECV.FoDCS.GS.SSGT.BoM.BM<-lapply(reconstruction.FoDCS.ssgt,function(phy){
+  model1<-brown.fit(phy,
+                    species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                    response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                    random.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Combo.AGS),                                          
+                    fixed.fact = as.factor(paste(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Fol.Non.Fol.Strict ,BrBo.Diet.DC.GS.SS.AP.trdata$dat$Social.System.DGT)),
+                    direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                    mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                    mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                    hillclimb = TRUE,convergence = 150,
+                    anc_maps = "simmap",
+                    lower = c(0.0001, 0.0001))
+})
+summary(ECV.FoDCS.GS.SSGT.BoM.BM)
+
+
+
+```
+
+
+
+```{r}
+
+
+
+```
+
+
+
+```{r}
+
+######################
+#Folivore Diet Categories + Social System GT
+ECV.FoDCS.SSGT.BoM.OUDF<-lapply(reconstruction.FoDCS.ssgt,function(phy){
+  model1<-slouch.fit(phy,
+                     species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                     response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                     fixed.fact = as.factor(paste(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Fol.Non.Fol.Strict ,BrBo.Diet.DC.GS.SS.AP.trdata$dat$Social.System.DGT)),
+                     direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                     mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                     mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                     hl_values = seq(0.0001, max.hl*3, length.out = 50),
+                     vy_values = seq(0.0001, 1, length.out = 50),
+                     hillclimb = FALSE,convergence = 150,
+                     anc_maps = "simmap",
+                     lower = c(0.0001, 0.0001))
+})
+summary(ECV.FoDCS.SSGT.BoM.OUDF)
+
+ECV.FoDCS.SSGT.BoM.BM<-lapply(reconstruction.FoDCS.ssgt,function(phy){
+  model1<-brown.fit(phy,
+                    species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                    response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                    fixed.fact = as.factor(paste(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Fol.Non.Fol.Strict ,BrBo.Diet.DC.GS.SS.AP.trdata$dat$Social.System.DGT)),
+                    direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                    mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                    mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                    hillclimb = TRUE,convergence = 150,
+                    anc_maps = "simmap",
+                    lower = c(0.0001, 0.0001))
+})
+summary(ECV.FoDCS.SSGT.BoM.BM)
+
+
+
+
+```
+
+```{r}
+
+
+
+```
+
+###################################
+
+## Original DeCasien Sociality Categories
+
+Diet Categories + ...
+###########################
+
+Folivore Non-Folivore Diet Categories
+```{r}
+
+```
+
+Folivore Non-Folivore Diet Categories
+```{r}
+#Folivore Diet Categories + Group Size Continuous + Social System
+ECV.FoDCS.GS.SS.BoM.OURDF<-lapply(reconstruction.FoDCS.ss,function(phy){
+  model1<-slouch.fit(phy,
+                     species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                     response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                     random.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Combo.AGS),                                          
+                     fixed.fact = as.factor(paste(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Fol.Non.Fol.Strict ,BrBo.Diet.DC.GS.SS.AP.trdata$dat$Social.System.DRclass)),
+                     direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                     mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                     mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                     hl_values = seq(0.0001, max.hl*3, length.out = 50),
+                     vy_values = seq(0.0001, 1, length.out = 50),
+                     hillclimb = FALSE,convergence = 150,
+                     anc_maps = "simmap",
+                     lower = c(0.0001, 0.0001))
+})
+summary(ECV.FoDCS.GS.SS.BoM.OURDF)
+
+
+ECV.FoDCS.GS.SS.BoM.BM<-lapply(reconstruction.FoDCS.ss,function(phy){
+  model1<-brown.fit(phy,
+                    species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                    response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                    random.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Combo.AGS),                                          
+                    fixed.fact = as.factor(paste(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Fol.Non.Fol.Strict ,BrBo.Diet.DC.GS.SS.AP.trdata$dat$Social.System.DRclass)),
+                    direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                    mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                    mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                    hillclimb = TRUE,convergence = 150,
+                    anc_maps = "simmap",
+                    lower = c(0.0001, 0.0001))
+})
+summary(ECV.FoDCS.GS.SS.BoM.BM)
+
+######################
+#Folivore Diet Categories + Group Size Continuous + Mating System
+
+ECV.FoDCS.GS.MS.BoM.OURDF<-lapply(reconstruction.FoDCS.ms,function(phy){
+  model1<-slouch.fit(phy,
+                     species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                     response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                     random.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Combo.AGS),                                          
+                     fixed.fact = as.factor(paste(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Fol.Non.Fol.Strict ,BrBo.Diet.DC.GS.SS.AP.trdata$dat$ Mating.System)),
+                     direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                     mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                     mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                     hl_values = seq(0.0001, max.hl*3, length.out = 50),
+                     vy_values = seq(0.0001, 1, length.out = 50),
+                     hillclimb = FALSE,convergence = 150,
+                     anc_maps = "simmap",
+                     lower = c(0.0001, 0.0001))
+})
+summary(ECV.FoDCS.GS.MS.BoM.OURDF)
+
+
+ECV.FoDCS.GS.MS.BoM.BM<-lapply(reconstruction.FoDCS.ms,function(phy){
+  model1<-brown.fit(phy,
+                    species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                    response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                    random.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Combo.AGS),                                          
+                    fixed.fact = as.factor(paste(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Fol.Non.Fol.Strict ,BrBo.Diet.DC.GS.SS.AP.trdata$dat$ Mating.System)),
+                    direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                    mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                    mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                    hillclimb = TRUE,convergence = 150,
+                    anc_maps = "simmap",
+                    lower = c(0.0001, 0.0001))
+})
+summary(ECV.FoDCS.GS.MS.BoM.BM)
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+######################
+#Folivore Diet Categories + Group Size
+ECV.FoDCS.GS.BoM.OURDF<-lapply(reconstruction.FoDCS,function(phy){
+  model1<-slouch.fit(phy,
+                     species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                     response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                     random.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Combo.AGS),                                 
+                     fixed.fact = BrBo.Diet.DC.GS.SS.AP.trdata$dat$Fol.Non.Fol.Strict ,
+                     direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                     mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                     mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                     hl_values = seq(0.0001, max.hl*3, length.out = 50),
+                     vy_values = seq(0.0001, 0.1, length.out = 50),
+                     hillclimb = FALSE,convergence = 150,
+                     anc_maps = "simmap",
+                     lower = c(0.0001, 0.0001))
+})
+summary(ECV.FoDCS.GS.BoM.OURDF)
+
+
+
+ECV.FoDCS.GS.BoM.BM<-lapply(reconstruction.FoDCS,function(phy){
+  model1<-brown.fit(phy,
+                    species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                    response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                    random.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Combo.AGS),                                 
+                    fixed.fact = BrBo.Diet.DC.GS.SS.AP.trdata$dat$Fol.Non.Fol.Strict ,
+                    direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                    mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                    mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                    hillclimb = TRUE,convergence = 150,
+                    anc_maps = "simmap",
+                    lower = c(0.0001, 0.0001))
+})
+summary(ECV.FoDCS.GS.BoM.BM)
+
+###########
+
+#Folivore Diet Categories + Group Size Categories
+ECV.FoDCS.GSC.BoM.OUDF<-lapply(reconstruction.FoDCS.gsc,function(phy){
+  model1<-slouch.fit(phy,
+                     species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                     response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                     fixed.fact = as.factor(paste(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Fol.Non.Fol.Strict ,BrBo.Diet.DC.GS.SS.AP.trdata$dat$Cat.group.size)),
+                     direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                     mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                     mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                     hl_values = seq(0.0001, max.hl*3, length.out = 50),
+                     vy_values = seq(0.0001, 1, length.out = 50),
+                     hillclimb = FALSE,convergence = 150,
+                     anc_maps = "simmap",
+                     lower = c(0.0001, 0.0001))
+})
+summary(ECV.FoDCS.GSC.BoM.OUDF)
+
+ECV.FoDCS.GSC.BoM.BM<-lapply(reconstruction.FoDCS.gsc,function(phy){
+  model1<-brown.fit(phy,
+                    species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                    response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                    fixed.fact = as.factor(paste(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Fol.Non.Fol.Strict ,BrBo.Diet.DC.GS.SS.AP.trdata$dat$Cat.group.size)),
+                    direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                    mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                    mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                    hillclimb = TRUE,convergence = 150,
+                    anc_maps = "simmap",
+                    lower = c(0.0001, 0.0001))
+})
+summary(ECV.FoDCS.GSC.BoM.BM)
+
+
+######################
+#Folivore Diet Categories + Social System
+ECV.FoDCS.SS.BoM.OUDF<-lapply(reconstruction.FoDCS.ss,function(phy){
+  model1<-slouch.fit(phy,
+                     species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                     response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                     fixed.fact = as.factor(paste(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Fol.Non.Fol.Strict ,BrBo.Diet.DC.GS.SS.AP.trdata$dat$Social.System.DRclass)),
+                     direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                     mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                     mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                     hl_values = seq(0.0001, max.hl*3, length.out = 50),
+                     vy_values = seq(0.0001, 1, length.out = 50),
+                     hillclimb = FALSE,convergence = 150,
+                     anc_maps = "simmap",
+                     lower = c(0.0001, 0.0001))
+})
+summary(ECV.FoDCS.SS.BoM.OUDF)
+
+ECV.FoDCS.SS.BoM.BM<-lapply(reconstruction.FoDCS.ss,function(phy){
+  model1<-brown.fit(phy,
+                    species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                    response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                    fixed.fact = as.factor(paste(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Fol.Non.Fol.Strict ,BrBo.Diet.DC.GS.SS.AP.trdata$dat$Social.System.DRclass)),
+                    direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                    mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                    mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                    hillclimb = TRUE,convergence = 150,
+                    anc_maps = "simmap",
+                    lower = c(0.0001, 0.0001))
+})
+summary(ECV.FoDCS.SS.BoM.BM)
+
+######################
+#Folivore Diet Categories + Mating System
+ECV.FoDCS.MS.BoM.OUDF<-lapply(reconstruction.FoDCS.ms,function(phy){
+  model1<-slouch.fit(phy,
+                     species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                     response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                     fixed.fact = as.factor(paste(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Fol.Non.Fol.Strict ,BrBo.Diet.DC.GS.SS.AP.trdata$dat$ Mating.System)),
+                     direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                     mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                     mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                     hl_values = seq(0.0001, max.hl*3, length.out = 50),
+                     vy_values = seq(0.0001, 1, length.out = 50),
+                     hillclimb = FALSE,convergence = 150,
+                     anc_maps = "simmap",
+                     lower = c(0.0001, 0.0001))
+})
+summary(ECV.FoDCS.MS.BoM.OUDF)
+
+ECV.FoDCS.MS.BoM.BM<-lapply(reconstruction.FoDCS.ms,function(phy){
+  model1<-brown.fit(phy,
+                    species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                    response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                    fixed.fact = as.factor(paste(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Fol.Non.Fol.Strict ,BrBo.Diet.DC.GS.SS.AP.trdata$dat$ Mating.System)),
+                    direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                    mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                    mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                    hillclimb = TRUE,convergence = 150,
+                    anc_maps = "simmap",
+                    lower = c(0.0001, 0.0001))
+})
+summary(ECV.FoDCS.MS.BoM.BM)
+
+
+```
+
+```{r}
+
+```
+
+```{r}
+##############
+#Folivore Diet Categories
+ECV.FoDCS.BoM.OUDF<-lapply(reconstruction.FoDCS,function(phy){
+  model1<-slouch.fit(phy,
+                     species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                     response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                     fixed.fact = BrBo.Diet.DC.GS.SS.AP.trdata$dat$Fol.Non.Fol.Strict,
+                     direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                     mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                     mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                     hl_values = seq(0.0001, max.hl*3, length.out = 50),
+                     vy_values = seq(0.0001, 1, length.out = 50),
+                     hillclimb = FALSE,convergence = 150,
+                     anc_maps = "simmap",
+                     lower = c(0.0001, 0.0001))
+})
+summary(ECV.FoDCS.BoM.OUDF)
+
+ECV.FoDCS.BoM.BM<-lapply(reconstruction.FoDCS,function(phy){
+  model1<-brown.fit(phy,
+                     species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                     response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                     fixed.fact = BrBo.Diet.DC.GS.SS.AP.trdata$dat$Fol.Non.Fol.Strict ,
+                    direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                     mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                     mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                     hillclimb = TRUE,convergence = 150,
+                     anc_maps = "simmap",
+                     lower = c(0.0001, 0.0001))
+})
+summary(ECV.FoDCS.BoM.BM)
+
+```
+
+```{r}
+save.image("WS from Slouch pt 1 062722.RData")
+
+```
+
+
+Original Folivore Definition Models
+```{r}
+
+```
+
+
+```{r}
+#Frugivore Diet Categories + Group Size Continuous + Social System GT
+ECV.FrDC.GS.SSGT.BoM.OURDF<-lapply(reconstruction.FrDC.ssgt,function(phy){
+                      model1<-slouch.fit(phy,
+                              species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                              response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                              random.cov = 
+                              log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Combo.AGS),                                          
+                              fixed.fact = as.factor(paste(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Frug.Non.Frug.Per ,BrBo.Diet.DC.GS.SS.AP.trdata$dat$Social.System.DGT)),
+                              direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                              mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                              mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                              hl_values = seq(0.0001, max.hl*3, length.out = 50),
+                              vy_values = seq(0.0001, 1, length.out = 50),
+                              hillclimb = FALSE,convergence = 150,
+                              anc_maps = "simmap",
+                              lower = c(0.0001, 0.0001))
+                      })
+summary(ECV.FrDC.GS.SSGT.BoM.OURDF)
+
+
+ECV.FrDC.GS.SSGT.BoM.BM<-lapply(reconstruction.FrDC.ssgt,function(phy){
+                      model1<-brown.fit(phy,
+                              species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                              response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                              random.cov = 
+                              log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Combo.AGS),                                          
+                              fixed.fact = as.factor(paste(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Frug.Non.Frug.Per ,BrBo.Diet.DC.GS.SS.AP.trdata$dat$Social.System.DGT)),
+                              direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                              mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                              mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                              hillclimb = TRUE,convergence = 150,
+                              anc_maps = "simmap",
+                              lower = c(0.0001, 0.0001))
+                      })
+summary(ECV.FrDC.GS.SSGT.BoM.BM)
+
+
+
+```
+
+
+```{r}
+
+
+```
+
+
+```{r}
+######################
+#Frugivore Diet Categories + Social System GT
+ECV.FrDC.SSGT.BoM.OUDF<-lapply(reconstruction.FrDC.ssgt,function(phy){
+                      model1<-slouch.fit(phy,
+                              species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                              response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                              fixed.fact = as.factor(paste(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Frug.Non.Frug.Per ,BrBo.Diet.DC.GS.SS.AP.trdata$dat$Social.System.DGT)),
+                              direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                              mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                              mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                              hl_values = seq(0.0001, max.hl*3, length.out = 50),
+                              vy_values = seq(0.0001, 1, length.out = 50),
+                              hillclimb = FALSE,convergence = 150,
+                              anc_maps = "simmap",
+                              lower = c(0.0001, 0.0001))
+                      })
+summary(ECV.FrDC.SSGT.BoM.OUDF)
+
+ECV.FrDC.SSGT.BoM.BM<-lapply(reconstruction.FrDC.ssgt,function(phy){
+                      model1<-brown.fit(phy,
+                              species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                              response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                              fixed.fact = as.factor(paste(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Frug.Non.Frug.Per ,BrBo.Diet.DC.GS.SS.AP.trdata$dat$Social.System.DGT)),
+                              direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                              mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                              mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                              hillclimb = TRUE,convergence = 150,
+                              anc_maps = "simmap",
+                              lower = c(0.0001, 0.0001))
+                      })
+summary(ECV.FrDC.SSGT.BoM.BM)
+
+
+```
+
+Folivore Non-Folivore Diet Categories
+```{r}
+
+
+
+```
+
+Folivore Non-Folivore Diet Categories
+```{r}
+#Folivore Diet Categories + Group Size Continuous + Social System GT
+ECV.FoDC.GS.SSGT.BoM.OURDF<-lapply(reconstruction.FoDC.ssgt,function(phy){
+  model1<-slouch.fit(phy,
+                     species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                     response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                     random.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Combo.AGS),                                          
+                     fixed.fact = as.factor(paste(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Fol.Non.Fol.Per ,BrBo.Diet.DC.GS.SS.AP.trdata$dat$Social.System.DGT)),
+                     direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                     mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                     mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                     hl_values = seq(0.0001, max.hl*3, length.out = 50),
+                     vy_values = seq(0.0001, 1, length.out = 50),
+                     hillclimb = FALSE,convergence = 150,
+                     anc_maps = "simmap",
+                     lower = c(0.0001, 0.0001))
+})
+summary(ECV.FoDC.GS.SSGT.BoM.OURDF)
+
+
+ECV.FoDC.GS.SSGT.BoM.BM<-lapply(reconstruction.FoDC.ssgt,function(phy){
+  model1<-brown.fit(phy,
+                    species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                    response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                    random.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Combo.AGS),                                          
+                    fixed.fact = as.factor(paste(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Fol.Non.Fol.Per ,BrBo.Diet.DC.GS.SS.AP.trdata$dat$Social.System.DGT)),
+                    direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                    mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                    mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                    hillclimb = TRUE,convergence = 150,
+                    anc_maps = "simmap",
+                    lower = c(0.0001, 0.0001))
+})
+summary(ECV.FoDC.GS.SSGT.BoM.BM)
+
+
+
+```
+
+
+
+```{r}
+
+
+```
+
+
+```{r}
+
+######################
+#Folivore Diet Categories + Social System GT
+ECV.FoDC.SSGT.BoM.OUDF<-lapply(reconstruction.FoDC.ssgt,function(phy){
+  model1<-slouch.fit(phy,
+                     species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                     response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                     fixed.fact = as.factor(paste(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Fol.Non.Fol.Per ,BrBo.Diet.DC.GS.SS.AP.trdata$dat$Social.System.DGT)),
+                     direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                     mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                     mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                     hl_values = seq(0.0001, max.hl*3, length.out = 50),
+                     vy_values = seq(0.0001, 1, length.out = 50),
+                     hillclimb = FALSE,convergence = 150,
+                     anc_maps = "simmap",
+                     lower = c(0.0001, 0.0001))
+})
+summary(ECV.FoDC.SSGT.BoM.OUDF)
+
+ECV.FoDC.SSGT.BoM.BM<-lapply(reconstruction.FoDC.ssgt,function(phy){
+  model1<-brown.fit(phy,
+                    species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                    response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                    fixed.fact = as.factor(paste(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Fol.Non.Fol.Per ,BrBo.Diet.DC.GS.SS.AP.trdata$dat$Social.System.DGT)),
+                    direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                    mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                    mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                    hillclimb = TRUE,convergence = 150,
+                    anc_maps = "simmap",
+                    lower = c(0.0001, 0.0001))
+})
+summary(ECV.FoDC.SSGT.BoM.BM)
+
+
+
+
+```
+
+
+```{r}
+
+
+
+
+
+
+```
+
+
+```{r}
+#Average Group Size + Social System GT
+ECV.GS.SSGT.BoM.OURDF<-lapply(reconstruction.ssgt,function(phy){
+  model1<-slouch.fit(phy,
+                     species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                     response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                    random.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Combo.AGS),
+                    fixed.fact = BrBo.Diet.DC.GS.SS.AP.trdata$dat$Social.System.DGT,
+                    direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                     mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                     mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                     hl_values = seq(0.0001, max.hl*3, length.out = 50),
+                     vy_values = seq(0.0001, 1, length.out = 50),
+                     hillclimb = FALSE,convergence = 150,
+                     anc_maps = "simmap",
+                     lower = c(0.0001, 0.0001))
+})
+summary(ECV.GS.SSGT.BoM.OURDF)
+
+ECV.GS.SSGT.BoM.BM<-lapply(reconstruction.ssgt,function(phy){
+            model1<-brown.fit(phy,
+                     species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                     response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                    random.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Combo.AGS),
+                    fixed.fact = BrBo.Diet.DC.GS.SS.AP.trdata$dat$Social.System.DGT,
+                    direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                     mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                     mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                     hillclimb = TRUE,convergence = 150,
+                     anc_maps = "simmap",
+                     lower = c(0.0001, 0.0001))
+})
+summary(ECV.GS.SSGT.BoM.BM)
+
+
+
+```
+
+
+Single Factors + AP   
+```{r}
+
+```
+
+Single Factors
+
+```{r}
+###########
+#Social System GT
+ECV.SSGT.BoM.OUDF<-lapply(reconstruction.ssgt,function(phy){
+  model1<-slouch.fit(phy,
+                     species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                     response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                      fixed.fact = BrBo.Diet.DC.GS.SS.AP.trdata$dat$Social.System.DGT,
+                     direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                     mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                     mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                     hl_values = seq(0.0001, max.hl*3, length.out = 50),
+                     vy_values = seq(0.0001, 1, length.out = 50),
+                     hillclimb = FALSE,convergence = 150,
+                     anc_maps = "simmap",
+                     lower = c(0.0001, 0.0001))
+})
+summary(ECV.SSGT.BoM.OUDF)
+
+
+ECV.SSGT.BoM.BM<-lapply(reconstruction.ssgt,function(phy){
+  model1<-brown.fit(phy,
+                     species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                     response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                      fixed.fact = BrBo.Diet.DC.GS.SS.AP.trdata$dat$Social.System.DGT,
+                    direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                     mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                     mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                     hillclimb = TRUE,convergence = 150,
+                     anc_maps = "simmap",
+                     lower = c(0.0001, 0.0001))
+})
+summary(ECV.SSGT.BoM.BM)
+
+```
+
+
+###################################
+
+## Original DeCasien Sociality Categories
+
+Diet Categories + ...
+###########################
+
+```{r}
+
+
+```
+
+
+```{r}
+#Frugivore Diet Categories + Group Size Continuous + Social System
+ECV.FrDC.GS.SS.BoM.OURDF<-lapply(reconstruction.FrDC.ss,function(phy){
+                      model1<-slouch.fit(phy,
+                              species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                              response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                              random.cov = 
+                              log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Combo.AGS),                                          
+                              fixed.fact = as.factor(paste(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Frug.Non.Frug.Per ,BrBo.Diet.DC.GS.SS.AP.trdata$dat$Social.System.DRclass)),
+                              direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                              mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                              mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                              hl_values = seq(0.0001, max.hl*3, length.out = 50),
+                              vy_values = seq(0.0001, 1, length.out = 50),
+                              hillclimb = FALSE,convergence = 150,
+                              anc_maps = "simmap",
+                              lower = c(0.0001, 0.0001))
+                      })
+summary(ECV.FrDC.GS.SS.BoM.OURDF)
+
+
+ECV.FrDC.GS.SS.BoM.BM<-lapply(reconstruction.FrDC.ss,function(phy){
+                      model1<-brown.fit(phy,
+                              species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                              response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                              random.cov = 
+                              log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Combo.AGS),                                          
+                              fixed.fact = as.factor(paste(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Frug.Non.Frug.Per ,BrBo.Diet.DC.GS.SS.AP.trdata$dat$Social.System.DRclass)),
+                              direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                              mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                              mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                              hillclimb = TRUE,convergence = 150,
+                              anc_maps = "simmap",
+                              lower = c(0.0001, 0.0001))
+                      })
+summary(ECV.FrDC.GS.SS.BoM.BM)
+
+######################
+#Frugivore Diet Categories + Group Size Continuous + Mating System
+ECV.FrDC.GS.MS.BoM.OURDF<-lapply(reconstruction.FrDC.ms,function(phy){
+                      model1<-slouch.fit(phy,
+                              species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                              response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                              random.cov = 
+                              log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Combo.AGS),                                          
+                              fixed.fact = as.factor(paste(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Frug.Non.Frug.Per ,BrBo.Diet.DC.GS.SS.AP.trdata$dat$ Mating.System)),
+                              direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                              mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                              mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                              hl_values = seq(0.0001, max.hl*3, length.out = 50),
+                              vy_values = seq(0.0001, 1, length.out = 50),
+                              hillclimb = FALSE,convergence = 150,
+                              anc_maps = "simmap",
+                              lower = c(0.0001, 0.0001))
+                      })
+summary(ECV.FrDC.GS.MS.BoM.OURDF)
+
+
+ECV.FrDC.GS.MS.BoM.BM<-lapply(reconstruction.FrDC.ms,function(phy){
+                      model1<-brown.fit(phy,
+                              species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                              response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                              random.cov = 
+                              log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Combo.AGS),                                          
+                              fixed.fact = as.factor(paste(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Frug.Non.Frug.Per ,BrBo.Diet.DC.GS.SS.AP.trdata$dat$ Mating.System)),
+                              direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                              mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                              mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                              hillclimb = TRUE,convergence = 150,
+                              anc_maps = "simmap",
+                              lower = c(0.0001, 0.0001))
+                      })
+summary(ECV.FrDC.GS.MS.BoM.BM)
+
+```
+
+
+```{r}
+
+
+```
+
+
+```{r}
+######################
+#Frugivore Diet Categories + Group Size Continuous
+ECV.FrDC.GS.BoM.OURDF<-lapply(reconstruction.FrDC,function(phy){
+                      model1<-slouch.fit(phy,
+                              species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                              response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                              random.cov = 
+                              log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Combo.AGS),                                 
+                              fixed.fact = BrBo.Diet.DC.GS.SS.AP.trdata$dat$Frug.Non.Frug.Per ,
+                              direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                              mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                              mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                              hl_values = seq(0.0001, max.hl*3, length.out = 50),
+                              vy_values = seq(0.0001, 1, length.out = 50),
+                              hillclimb = FALSE,convergence = 150,
+                              anc_maps = "simmap",
+                              lower = c(0.0001, 0.0001))
+                      })
+summary(ECV.FrDC.GS.BoM.OURDF)
+
+
+
+ECV.FrDC.GS.BoM.BM<-lapply(reconstruction.FrDC,function(phy){
+                      model1<-brown.fit(phy,
+                              species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                              response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                              random.cov = 
+                              log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Combo.AGS),                                 
+                              fixed.fact = BrBo.Diet.DC.GS.SS.AP.trdata$dat$Frug.Non.Frug.Per ,
+                              direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                              mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                              mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                              hillclimb = TRUE,convergence = 150,
+                              anc_maps = "simmap",
+                              lower = c(0.0001, 0.0001))
+                      })
+summary(ECV.FrDC.GS.BoM.BM)
+
+###########
+#Frugivore Diet Categories + Group Size Categories
+ECV.FrDC.GSC.BoM.OUDF<-lapply(reconstruction.FrDC.gsc,function(phy){
+                      model1<-slouch.fit(phy,
+                              species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                              response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                              fixed.fact = as.factor(paste(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Frug.Non.Frug.Per ,BrBo.Diet.DC.GS.SS.AP.trdata$dat$Cat.group.size)),
+                              direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                              mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                              mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                              hl_values = seq(0.0001, max.hl*3, length.out = 50),
+                              vy_values = seq(0.0001, 1, length.out = 50),
+                              hillclimb = FALSE,convergence = 150,
+                              anc_maps = "simmap",
+                              lower = c(0.0001, 0.0001))
+                      })
+summary(ECV.FrDC.GSC.BoM.OUDF)
+
+ECV.FrDC.GSC.BoM.BM<-lapply(reconstruction.FrDC.gsc,function(phy){
+                      model1<-brown.fit(phy,
+                              species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                              response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                              fixed.fact = as.factor(paste(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Frug.Non.Frug.Per ,BrBo.Diet.DC.GS.SS.AP.trdata$dat$Cat.group.size)),
+                              direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                              mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                              mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                              hillclimb = TRUE,convergence = 150,
+                              anc_maps = "simmap",
+                              lower = c(0.0001, 0.0001))
+                      })
+summary(ECV.FrDC.GSC.BoM.BM)
+
+
+######################
+#Frugivore Diet Categories + Social System
+ECV.FrDC.SS.BoM.OUDF<-lapply(reconstruction.FrDC.ss,function(phy){
+                      model1<-slouch.fit(phy,
+                              species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                              response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                              fixed.fact = as.factor(paste(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Frug.Non.Frug.Per ,BrBo.Diet.DC.GS.SS.AP.trdata$dat$Social.System.DRclass)),
+                              direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                              mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                              mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                              hl_values = seq(0.0001, max.hl*3, length.out = 50),
+                              vy_values = seq(0.0001, 1, length.out = 50),
+                              hillclimb = FALSE,convergence = 150,
+                              anc_maps = "simmap",
+                              lower = c(0.0001, 0.0001))
+                      })
+summary(ECV.FrDC.SS.BoM.OUDF)
+
+ECV.FrDC.SS.BoM.BM<-lapply(reconstruction.FrDC.ss,function(phy){
+                      model1<-brown.fit(phy,
+                              species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                              response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                              fixed.fact = as.factor(paste(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Frug.Non.Frug.Per ,BrBo.Diet.DC.GS.SS.AP.trdata$dat$Social.System.DRclass)),
+                              direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                              mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                              mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                              hillclimb = TRUE,convergence = 150,
+                              anc_maps = "simmap",
+                              lower = c(0.0001, 0.0001))
+                      })
+summary(ECV.FrDC.SS.BoM.BM)
+
+######################
+#Frugivore Diet Categories + Mating System
+ECV.FrDC.MS.BoM.OUDF<-lapply(reconstruction.FrDC.ms,function(phy){
+                      model1<-slouch.fit(phy,
+                              species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                              response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                              fixed.fact = as.factor(paste(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Frug.Non.Frug.Per ,BrBo.Diet.DC.GS.SS.AP.trdata$dat$ Mating.System)),
+                              direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                              mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                              mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                              hl_values = seq(0.0001, max.hl*3, length.out = 50),
+                              vy_values = seq(0.0001, 1, length.out = 50),
+                              hillclimb = FALSE,convergence = 150,
+                              anc_maps = "simmap",
+                              lower = c(0.0001, 0.0001))
+                      })
+summary(ECV.FrDC.MS.BoM.OUDF)
+
+ECV.FrDC.MS.BoM.BM<-lapply(reconstruction.FrDC.ms,function(phy){
+                      model1<-brown.fit(phy,
+                              species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                              response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                              fixed.fact = as.factor(paste(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Frug.Non.Frug.Per ,BrBo.Diet.DC.GS.SS.AP.trdata$dat$ Mating.System)),
+                              direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                              mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                              mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                              hillclimb = TRUE,convergence = 150,
+                              anc_maps = "simmap",
+                              lower = c(0.0001, 0.0001))
+                      })
+summary(ECV.FrDC.MS.BoM.BM)
+
+```
+
+```{r}
+save.image("WS from Slouch pt 2 062722.RData")
+#load("WS from Slouch pt 2.RData")
+```
+
+
+Folivore Non-Folivore Diet Categories
+```{r}
+
+```
+
+Folivore Non-Folivore Diet Categories
+```{r}
+#Folivore Diet Categories + Group Size Continuous + Social System
+ECV.FoDC.GS.SS.BoM.OURDF<-lapply(reconstruction.FoDC.ss,function(phy){
+  model1<-slouch.fit(phy,
+                     species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                     response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                     random.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Combo.AGS),                                          
+                     fixed.fact = as.factor(paste(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Fol.Non.Fol.Per ,BrBo.Diet.DC.GS.SS.AP.trdata$dat$Social.System.DRclass)),
+                     direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                     mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                     mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                     hl_values = seq(0.0001, max.hl*3, length.out = 50),
+                     vy_values = seq(0.0001, 1, length.out = 50),
+                     hillclimb = FALSE,convergence = 150,
+                     anc_maps = "simmap",
+                     lower = c(0.0001, 0.0001))
+})
+summary(ECV.FoDC.GS.SS.BoM.OURDF)
+
+
+ECV.FoDC.GS.SS.BoM.BM<-lapply(reconstruction.FoDC.ss,function(phy){
+  model1<-brown.fit(phy,
+                    species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                    response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                    random.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Combo.AGS),                                          
+                    fixed.fact = as.factor(paste(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Fol.Non.Fol.Per ,BrBo.Diet.DC.GS.SS.AP.trdata$dat$Social.System.DRclass)),
+                    direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                    mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                    mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                    hillclimb = TRUE,convergence = 150,
+                    anc_maps = "simmap",
+                    lower = c(0.0001, 0.0001))
+})
+summary(ECV.FoDC.GS.SS.BoM.BM)
+
+######################
+#Folivore Diet Categories + Group Size Continuous + Mating System
+
+ECV.FoDC.GS.MS.BoM.OURDF<-lapply(reconstruction.FoDC.ms,function(phy){
+  model1<-slouch.fit(phy,
+                     species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                     response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                     random.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Combo.AGS),                                          
+                     fixed.fact = as.factor(paste(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Fol.Non.Fol.Per ,BrBo.Diet.DC.GS.SS.AP.trdata$dat$ Mating.System)),
+                     direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                     mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                     mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                     hl_values = seq(0.0001, max.hl*3, length.out = 50),
+                     vy_values = seq(0.0001, 1, length.out = 50),
+                     hillclimb = FALSE,convergence = 150,
+                     anc_maps = "simmap",
+                     lower = c(0.0001, 0.0001))
+})
+summary(ECV.FoDC.GS.MS.BoM.OURDF)
+
+
+ECV.FoDC.GS.MS.BoM.BM<-lapply(reconstruction.FoDC.ms,function(phy){
+  model1<-brown.fit(phy,
+                    species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                    response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                    random.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Combo.AGS),                                          
+                    fixed.fact = as.factor(paste(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Fol.Non.Fol.Per ,BrBo.Diet.DC.GS.SS.AP.trdata$dat$ Mating.System)),
+                    direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                    mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                    mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                    hillclimb = TRUE,convergence = 150,
+                    anc_maps = "simmap",
+                    lower = c(0.0001, 0.0001))
+})
+summary(ECV.FoDC.GS.MS.BoM.BM)
+
+```
+
+
+```{r}
+
+
+######################
+###########
+######################
+
+
+```
+
+
+```{r}
+######################
+#Folivore Diet Categories + Group Size
+ECV.FoDC.GS.BoM.OURDF<-lapply(reconstruction.FoDC,function(phy){
+  model1<-slouch.fit(phy,
+                     species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                     response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                     random.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Combo.AGS),                                 
+                     fixed.fact = BrBo.Diet.DC.GS.SS.AP.trdata$dat$Fol.Non.Fol.Per ,
+                     direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                     mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                     mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                     hl_values = seq(0.0001, max.hl*3, length.out = 50),
+                     vy_values = seq(0.0001, 0.1, length.out = 50),
+                     hillclimb = FALSE,convergence = 150,
+                     anc_maps = "simmap",
+                     lower = c(0.0001, 0.0001))
+})
+summary(ECV.FoDC.GS.BoM.OURDF)
+
+
+
+ECV.FoDC.GS.BoM.BM<-lapply(reconstruction.FoDC,function(phy){
+  model1<-brown.fit(phy,
+                    species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                    response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                    random.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Combo.AGS),                                 
+                    fixed.fact = BrBo.Diet.DC.GS.SS.AP.trdata$dat$Fol.Non.Fol.Per ,
+                    direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                    mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                    mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                    hillclimb = TRUE,convergence = 150,
+                    anc_maps = "simmap",
+                    lower = c(0.0001, 0.0001))
+})
+summary(ECV.FoDC.GS.BoM.BM)
+
+###########
+
+#Folivore Diet Categories + Group Size Categories
+ECV.FoDC.GSC.BoM.OUDF<-lapply(reconstruction.FoDC.gsc,function(phy){
+  model1<-slouch.fit(phy,
+                     species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                     response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                     fixed.fact = as.factor(paste(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Fol.Non.Fol.Per ,BrBo.Diet.DC.GS.SS.AP.trdata$dat$Cat.group.size)),
+                     direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                     mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                     mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                     hl_values = seq(0.0001, max.hl*3, length.out = 50),
+                     vy_values = seq(0.0001, 1, length.out = 50),
+                     hillclimb = FALSE,convergence = 150,
+                     anc_maps = "simmap",
+                     lower = c(0.0001, 0.0001))
+})
+summary(ECV.FoDC.GSC.BoM.OUDF)
+
+ECV.FoDC.GSC.BoM.BM<-lapply(reconstruction.FoDC.gsc,function(phy){
+  model1<-brown.fit(phy,
+                    species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                    response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                    fixed.fact = as.factor(paste(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Fol.Non.Fol.Per ,BrBo.Diet.DC.GS.SS.AP.trdata$dat$Cat.group.size)),
+                    direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                    mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                    mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                    hillclimb = TRUE,convergence = 150,
+                    anc_maps = "simmap",
+                    lower = c(0.0001, 0.0001))
+})
+summary(ECV.FoDC.GSC.BoM.BM)
+
+
+######################
+#Folivore Diet Categories + Social System
+ECV.FoDC.SS.BoM.OUDF<-lapply(reconstruction.FoDC.ss,function(phy){
+  model1<-slouch.fit(phy,
+                     species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                     response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                     fixed.fact = as.factor(paste(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Fol.Non.Fol.Per ,BrBo.Diet.DC.GS.SS.AP.trdata$dat$Social.System.DRclass)),
+                     direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                     mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                     mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                     hl_values = seq(0.0001, max.hl*3, length.out = 50),
+                     vy_values = seq(0.0001, 1, length.out = 50),
+                     hillclimb = FALSE,convergence = 150,
+                     anc_maps = "simmap",
+                     lower = c(0.0001, 0.0001))
+})
+summary(ECV.FoDC.SS.BoM.OUDF)
+
+ECV.FoDC.SS.BoM.BM<-lapply(reconstruction.FoDC.ss,function(phy){
+  model1<-brown.fit(phy,
+                    species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                    response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                    fixed.fact = as.factor(paste(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Fol.Non.Fol.Per ,BrBo.Diet.DC.GS.SS.AP.trdata$dat$Social.System.DRclass)),
+                    direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                    mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                    mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                    hillclimb = TRUE,convergence = 150,
+                    anc_maps = "simmap",
+                    lower = c(0.0001, 0.0001))
+})
+summary(ECV.FoDC.SS.BoM.BM)
+
+######################
+#Folivore Diet Categories + Mating System
+ECV.FoDC.MS.BoM.OUDF<-lapply(reconstruction.FoDC.ms,function(phy){
+  model1<-slouch.fit(phy,
+                     species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                     response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                     fixed.fact = as.factor(paste(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Fol.Non.Fol.Per ,BrBo.Diet.DC.GS.SS.AP.trdata$dat$ Mating.System)),
+                     direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                     mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                     mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                     hl_values = seq(0.0001, max.hl*3, length.out = 50),
+                     vy_values = seq(0.0001, 1, length.out = 50),
+                     hillclimb = FALSE,convergence = 150,
+                     anc_maps = "simmap",
+                     lower = c(0.0001, 0.0001))
+})
+summary(ECV.FoDC.MS.BoM.OUDF)
+
+ECV.FoDC.MS.BoM.BM<-lapply(reconstruction.FoDC.ms,function(phy){
+  model1<-brown.fit(phy,
+                    species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                    response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                    fixed.fact = as.factor(paste(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Fol.Non.Fol.Per ,BrBo.Diet.DC.GS.SS.AP.trdata$dat$ Mating.System)),
+                    direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                    mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                    mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                    hillclimb = TRUE,convergence = 150,
+                    anc_maps = "simmap",
+                    lower = c(0.0001, 0.0001))
+})
+summary(ECV.FoDC.MS.BoM.BM)
+
+
+```
+
+```{r}
+
+```
+
+```{r}
+#Average Group Size + Social System
+ECV.GS.SS.BoM.OURDF<-lapply(reconstruction.ss,function(phy){
+  model1<-slouch.fit(phy,
+                     species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                     response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                    random.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Combo.AGS),
+                    fixed.fact = BrBo.Diet.DC.GS.SS.AP.trdata$dat$Social.System.DRclass,
+                    direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                     mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                     mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                     hl_values = seq(0.0001, max.hl*3, length.out = 50),
+                     vy_values = seq(0.0001, 1, length.out = 50),
+                     hillclimb = FALSE,convergence = 150,
+                     anc_maps = "simmap",
+                     lower = c(0.0001, 0.0001))
+})
+summary(ECV.GS.SS.BoM.OURDF)
+
+ECV.GS.SS.BoM.BM<-lapply(reconstruction.ss,function(phy){
+            model1<-brown.fit(phy,
+                     species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                     response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                    random.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Combo.AGS),
+                    fixed.fact = BrBo.Diet.DC.GS.SS.AP.trdata$dat$Social.System.DRclass,
+                    direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                     mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                     mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                     hillclimb = TRUE,convergence = 150,
+                     anc_maps = "simmap",
+                     lower = c(0.0001, 0.0001))
+})
+summary(ECV.GS.SS.BoM.BM)
+
+
+
+######################
+#Average Group Size + Mating System
+ECV.GS.MS.BoM.OURDF<-lapply(reconstruction.ms,function(phy){
+  model1<-slouch.fit(phy,
+                     species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                     response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                    random.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Combo.AGS),
+                    fixed.fact = BrBo.Diet.DC.GS.SS.AP.trdata$dat$ Mating.System,
+                    direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                     mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                     mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                     hl_values = seq(0.0001, max.hl*3, length.out = 50),
+                     vy_values = seq(0.0001, 1, length.out = 50),
+                     hillclimb = FALSE,convergence = 150,
+                     anc_maps = "simmap",
+                     lower = c(0.0001, 0.0001))
+})
+summary(ECV.GS.MS.BoM.OURDF)
+
+ECV.GS.MS.BoM.BM<-lapply(reconstruction.ms,function(phy){
+            model1<-brown.fit(phy,
+                     species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                     response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                    random.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Combo.AGS),
+                    fixed.fact = BrBo.Diet.DC.GS.SS.AP.trdata$dat$ Mating.System,
+                    direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                     mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                     mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                     hillclimb = TRUE,convergence = 150,
+                     anc_maps = "simmap",
+                     lower = c(0.0001, 0.0001))
+})
+summary(ECV.GS.MS.BoM.BM)
+
+
+```
+
+
+
+#### Rerun Below
+Single Factors + AP
+```{r}
+##############
+
+```
+
+```{r}
+
+```
+
+Continuous Factors + AP
+```{r}
+
+
+```
+
+```{r}
+###########
+
+
+```
+
+Single Factors
+```{r}
+##############
+#Frugivore Diet Categories
+ECV.FrDC.BoM.OUDF<-lapply(reconstruction.FrDC,function(phy){
+  model1<-slouch.fit(phy,
+                     species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                     response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                     fixed.fact = BrBo.Diet.DC.GS.SS.AP.trdata$dat$Frug.Non.Frug.Per ,
+                     direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                     mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                     mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                     hl_values = seq(0.0001, max.hl*3, length.out = 50),
+                     vy_values = seq(0.0001, 1, length.out = 50),
+                     hillclimb = FALSE,convergence = 150,
+                     anc_maps = "simmap",
+                     lower = c(0.0001, 0.0001))
+})
+summary(ECV.FrDC.BoM.OUDF)
+
+ECV.FrDC.BoM.BM<-lapply(reconstruction.FrDC,function(phy){
+  model1<-brown.fit(phy,
+                     species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                     response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                     fixed.fact = BrBo.Diet.DC.GS.SS.AP.trdata$dat$Frug.Non.Frug.Per ,
+                    direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                     mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                     mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                     hillclimb = TRUE,convergence = 150,
+                     anc_maps = "simmap",
+                     lower = c(0.0001, 0.0001))
+})
+summary(ECV.FrDC.BoM.BM)
+
+
+```
+
+```{r}
+##############
+#Folivore Diet Categories
+ECV.FoDC.BoM.OUDF<-lapply(reconstruction.FoDC,function(phy){
+  model1<-slouch.fit(phy,
+                     species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                     response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                     fixed.fact = BrBo.Diet.DC.GS.SS.AP.trdata$dat$Fol.Non.Fol.Per,
+                     direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                     mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                     mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                     hl_values = seq(0.0001, max.hl*3, length.out = 50),
+                     vy_values = seq(0.0001, 1, length.out = 50),
+                     hillclimb = FALSE,convergence = 150,
+                     anc_maps = "simmap",
+                     lower = c(0.0001, 0.0001))
+})
+summary(ECV.FoDC.BoM.OUDF)
+
+ECV.FoDC.BoM.BM<-lapply(reconstruction.FoDC,function(phy){
+  model1<-brown.fit(phy,
+                     species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                     response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                     fixed.fact = BrBo.Diet.DC.GS.SS.AP.trdata$dat$Fol.Non.Fol.Per ,
+                    direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                     mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                     mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                     hillclimb = TRUE,convergence = 150,
+                     anc_maps = "simmap",
+                     lower = c(0.0001, 0.0001))
+})
+summary(ECV.FoDC.BoM.BM)
+
+```
+
+Continuous Factors
+```{r}
+############
+#Group Size Continuous
+ECV.GS.BoM.OURD<-slouch.fit(BrBo.Diet.DC.GS.SS.AP.trdata$phy,
+                     species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                     response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                     random.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Combo.AGS),
+                     direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                     mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                     mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                     hl_values = seq(0.001, max.hl*3, length.out = 50),
+                     vy_values = seq(0.001, 1, length.out = 50),
+                     hillclimb = FALSE,convergence = 150,
+                     lower = c(0.0001, 0.0001))
+summary(ECV.GS.BoM.OURD)
+
+ECV.GS.BoM.BM<-brown.fit(BrBo.Diet.DC.GS.SS.AP.trdata$phy,
+                     species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                     response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                    random.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Combo.AGS),
+                    direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                     mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                     mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                     hillclimb = TRUE,convergence = 150,
+                     lower = c(0.0001, 0.0001))
+summary(ECV.GS.BoM.BM)
+
+######################
+
+
+```
+
+
+
+
+```{r}
+###########
+#Group Size Categories
+
+ECV.GSC.BoM.OUDF<-lapply(reconstruction.gsc,function(phy){
+  model1<-slouch.fit(phy,
+                     species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                     response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                      fixed.fact = BrBo.Diet.DC.GS.SS.AP.trdata$dat$Cat.group.size,
+                     direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                     mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                     mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                     hl_values = seq(0.0001, max.hl*3, length.out = 50),
+                     vy_values = seq(0.0001, 1, length.out = 50),
+                     hillclimb = FALSE,convergence = 150,
+                     anc_maps = "simmap",
+                     lower = c(0.0001, 0.0001))
+})
+summary(ECV.GSC.BoM.OUDF)
+
+
+ECV.GSC.BoM.BM<-lapply(reconstruction.gsc,function(phy){
+  model1<-brown.fit(phy,
+                     species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                     response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                      fixed.fact = BrBo.Diet.DC.GS.SS.AP.trdata$dat$Cat.group.size,
+                    direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                     mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                     mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                     hillclimb = TRUE,convergence = 150,
+                     anc_maps = "simmap",
+                     lower = c(0.0001, 0.0001))
+})
+summary(ECV.GSC.BoM.BM)
+
+
+```
+
+```{r}
+###########
+#Social System
+ECV.SS.BoM.OUDF<-lapply(reconstruction.ss,function(phy){
+  model1<-slouch.fit(phy,
+                     species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                     response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                      fixed.fact = BrBo.Diet.DC.GS.SS.AP.trdata$dat$Social.System.DRclass,
+                     direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                     mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                     mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                     hl_values = seq(0.0001, max.hl*3, length.out = 50),
+                     vy_values = seq(0.0001, 1, length.out = 50),
+                     hillclimb = FALSE,convergence = 150,
+                     anc_maps = "simmap",
+                     lower = c(0.0001, 0.0001))
+})
+summary(ECV.SS.BoM.OUDF)
+
+
+ECV.SS.BoM.BM<-lapply(reconstruction.ss,function(phy){
+  model1<-brown.fit(phy,
+                     species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                     response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                      fixed.fact = BrBo.Diet.DC.GS.SS.AP.trdata$dat$Social.System.DRclass,
+                    direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                     mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                     mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                     hillclimb = TRUE,convergence = 150,
+                     anc_maps = "simmap",
+                     lower = c(0.0001, 0.0001))
+})
+summary(ECV.SS.BoM.BM)
+
+
+###########
+#Mating System
+ECV.MS.BoM.OUDF<-lapply(reconstruction.ms,function(phy){
+  model1<-slouch.fit(phy,
+                     species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                     response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                      fixed.fact = BrBo.Diet.DC.GS.SS.AP.trdata$dat$ Mating.System,
+                     direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                     mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                     mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                     hl_values = seq(0.0001, max.hl*3, length.out = 50),
+                     vy_values = seq(0.0001, 1, length.out = 50),
+                     hillclimb = FALSE,convergence = 150,
+                     anc_maps = "simmap",
+                     lower = c(0.0001, 0.0001))
+})
+summary(ECV.MS.BoM.OUDF)
+
+
+ECV.MS.BoM.BM<-lapply(reconstruction.ms,function(phy){
+  model1<-brown.fit(phy,
+                     species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                     response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                      fixed.fact = BrBo.Diet.DC.GS.SS.AP.trdata$dat$ Mating.System,
+                    direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                     mv.response = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                     mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                     hillclimb = TRUE,convergence = 150,
+                     anc_maps = "simmap",
+                     lower = c(0.0001, 0.0001))
+})
+summary(ECV.MS.BoM.BM)
+
+
+```
+
+
+
+
+```{r}
+#OU Model of Evolution
+ECV.BoM.OU<-slouch.fit(phy = BrBo.Diet.DC.GS.SS.AP.trdata$phy,
+                              species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                              response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                              direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                              mv.response=BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                              mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                              hl_values = seq(0.0001, max.hl*3, length.out = 50),
+                              vy_values = seq(0.0001, 1, length.out = 50),
+                              hillclimb = FALSE,convergence = 150,
+                              lower = c(0.0001, 0.0001))
+
+summary(ECV.BoM.OU)
+
+
+#BM Model of Evolution
+ECV.BoM.BM<-brown.fit(phy = BrBo.Diet.DC.GS.SS.AP.trdata$phy,
+                              species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                              response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                              direct.cov = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                              mv.response=BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                              mv.direct.cov = BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                              hillclimb = TRUE,convergence = 150,
+                              lower = c(0.0001, 0.0001))
+
+
+summary(ECV.BoM.BM)
+
+```
+
+```{r}
+#OU Model of Evolution
+ECV.OU<-slouch.fit(phy = BrBo.Diet.DC.GS.SS.AP.trdata$phy,
+                              species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                              response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                              mv.response=BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                              hl_values = seq(0.0001, max.hl*3, length.out = 50),
+                              vy_values = seq(0.0001, 10, length.out = 50),
+                              hillclimb = FALSE,convergence = 150,
+                              lower = c(0.0001, 0.0001))
+
+summary(ECV.OU)
+
+
+#BM Model of Evolution
+ECV.BM<-brown.fit(phy = BrBo.Diet.DC.GS.SS.AP.trdata$phy,
+                              species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                              response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ECV.species.mean),
+                              mv.response=BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.ECV.species,
+                              hillclimb = TRUE,convergence = 150,
+                              lower = c(0.0001, 0.0001))
+
+
+summary(ECV.BM)
+
+```
+
+```{r}
+#OU Model of Evolution
+BoM.OU<-slouch.fit(phy = BrBo.Diet.DC.GS.SS.AP.trdata$phy,
+                              species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                              response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                              mv.response=BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                              hl_values = seq(0.0001, max.hl*3, length.out = 50),
+                              vy_values = seq(0.0001, 10, length.out = 50),
+                              hillclimb = FALSE,convergence = 150,
+                              lower = c(0.0001, 0.0001))
+
+summary(BoM.OU)
+
+
+#BM Model of Evolution
+BoM.BM<-brown.fit(phy = BrBo.Diet.DC.GS.SS.AP.trdata$phy,
+                              species = BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label,
+                              response = log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean),
+                              mv.response=BrBo.Diet.DC.GS.SS.AP.trdata$dat$me.BoM.species,
+                              hillclimb = TRUE,convergence = 150,
+                              lower = c(0.0001, 0.0001))
+
+
+summary(BoM.BM)
+
+```
+
+```{r}
+save.image("WS from Slouch pt 3 062722.RData")
+
+
+
+#load("/Volumes/GoogleDrive/My Drive/Shared with Mac Pro/Brain Size Diet + Social System/SB Revision 2/Results/SIMMAPS 061022/SIMMAPS/WS from Slouch pt 3 061022.RData")
+
+```
+
+
+## SIMMAP Reults Compilation - Discrete Models
+Strict Folivore Models First
+
+```{r}
+###################
+slouch.output<-lapply(ECV.FoDCS.GS.SSGT.BoM.OURDF,function(slouch_data){make.slouch.table(slouch_data,"OU.FF.AD.DE","Fol Diet Categories Strict+Group Size+Social System GT",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])})
+slouch.output<-append(slouch.output,lapply(ECV.FoDCS.GS.SSGT.BoM.BM,function(slouch_data){make.slouch.table(slouch_data,"FF.BM","Fol Diet Categories Strict+Group Size+Social System GT",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+
+
+##################
+
+##################
+slouch.output<-append(slouch.output,lapply(ECV.FoDCS.SSGT.BoM.OUDF,function(slouch_data){make.slouch.table(slouch_data,"OU.FF.DE","Fol Diet Categories Strict+Social System GT",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+slouch.output<-append(slouch.output,lapply(ECV.FoDCS.SSGT.BoM.BM,function(slouch_data){make.slouch.table(slouch_data,"FF.BM","Fol Diet Categories Strict+Social System GT",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+
+```
+
+
+## Original DeCasien et al. 2017 Sociality Data - social system reclassified
+
+```{r}
+#Folivore
+###################
+
+###################
+slouch.output<-append(slouch.output,lapply(ECV.FoDCS.GS.SS.BoM.OURDF,function(slouch_data){make.slouch.table(slouch_data,"OU.FF.AD.DE","Fol Diet Categories Strict+Group Size+Social System",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+slouch.output<-append(slouch.output,lapply(ECV.FoDCS.GS.SS.BoM.BM,function(slouch_data){make.slouch.table(slouch_data,"FF.BM","Fol Diet Categories Strict+Group Size+Social System",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+
+
+
+#################
+slouch.output<-append(slouch.output,lapply(ECV.FoDCS.GS.MS.BoM.OURDF,function(slouch_data){make.slouch.table(slouch_data,"OU.FF.AD.DE","Fol Diet Categories Strict+Group Size+Mating System",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+slouch.output<-append(slouch.output,lapply(ECV.FoDCS.GS.MS.BoM.BM,function(slouch_data){make.slouch.table(slouch_data,"FF.BM","Fol Diet Categories Strict+Group Size+Mating System",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+
+####################
+
+####################
+slouch.output<-append(slouch.output,lapply(ECV.FoDCS.GS.BoM.OURDF,function(slouch_data){make.slouch.table(slouch_data,"OU.FF.AD.DE","Fol Diet Categories Strict+Group Size",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+slouch.output<-append(slouch.output,lapply(ECV.FoDCS.GS.BoM.BM,function(slouch_data){make.slouch.table(slouch_data,"FF.BM","Fol Diet Categories Strict+Group Size",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+
+
+
+
+##################
+slouch.output<-append(slouch.output,lapply(ECV.FoDCS.GSC.BoM.OUDF,function(slouch_data){make.slouch.table(slouch_data,"OU.FF.DE","Fol Diet Categories Strict+Group Size Categories",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+slouch.output<-append(slouch.output,lapply(ECV.FoDCS.GSC.BoM.BM,function(slouch_data){make.slouch.table(slouch_data,"FF.BM","Fol Diet Categories Strict+Group Size Categories",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+##################
+
+##################
+slouch.output<-append(slouch.output,lapply(ECV.FoDCS.SS.BoM.OUDF,function(slouch_data){make.slouch.table(slouch_data,"OU.FF.DE","Fol Diet Categories Strict+Social System",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+slouch.output<-append(slouch.output,lapply(ECV.FoDCS.SS.BoM.BM,function(slouch_data){make.slouch.table(slouch_data,"FF.BM","Fol Diet Categories Strict+Social System",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+
+##################
+
+##################
+slouch.output<-append(slouch.output,lapply(ECV.FoDCS.MS.BoM.OUDF,function(slouch_data){make.slouch.table(slouch_data,"OU.FF.DE","Fol Diet Categories Strict+Mating System",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+slouch.output<-append(slouch.output,lapply(ECV.FoDCS.MS.BoM.BM,function(slouch_data){make.slouch.table(slouch_data,"FF.BM","Fol Diet Categories Strict+Mating System",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+
+
+
+#Single factors in addition to Body Mass
+#############################
+slouch.output<-append(slouch.output,lapply(ECV.FoDCS.BoM.OUDF,function(slouch_data){make.slouch.table(slouch_data,"OU.FF.DE","Fol Diet Categories Strict",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+slouch.output<-append(slouch.output,lapply(ECV.FoDCS.BoM.BM,function(slouch_data){make.slouch.table(slouch_data,"FF.BM","Fol Diet Categories Strict",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+
+```
+
+Original Folivore Definition based on % Diet
+Social System Group Type
+```{r}
+
+
+#################
+
+slouch.output<-append(slouch.output,lapply(ECV.FrDC.GS.SSGT.BoM.OURDF,function(slouch_data){make.slouch.table(slouch_data,"OU.FF.AD.DE","Frug Diet Categories+Group Size+Social System GT",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+slouch.output<-append(slouch.output,lapply(ECV.FrDC.GS.SSGT.BoM.BM,function(slouch_data){make.slouch.table(slouch_data,"FF.BM","Frug Diet Categories+Group Size+Social System GT",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+
+
+
+##################
+
+
+##################
+slouch.output<-append(slouch.output,lapply(ECV.FrDC.SSGT.BoM.OUDF,function(slouch_data){make.slouch.table(slouch_data,"OU.FF.DE","Frug Diet Categories+Social System GT",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+slouch.output<-append(slouch.output,lapply(ECV.FrDC.SSGT.BoM.BM,function(slouch_data){make.slouch.table(slouch_data,"FF.BM","Frug Diet Categories+Social System GT",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+
+
+
+
+###################
+slouch.output<-append(slouch.output,lapply(ECV.FoDC.GS.SSGT.BoM.OURDF,function(slouch_data){make.slouch.table(slouch_data,"OU.FF.AD.DE","Fol Diet Categories+Group Size+Social System GT",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+slouch.output<-append(slouch.output,lapply(ECV.FoDC.GS.SSGT.BoM.BM,function(slouch_data){make.slouch.table(slouch_data,"FF.BM","Fol Diet Categories+Group Size+Social System GT",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+
+
+
+##################
+slouch.output<-append(slouch.output,lapply(ECV.FoDC.SSGT.BoM.OUDF,function(slouch_data){make.slouch.table(slouch_data,"OU.FF.DE","Fol Diet Categories+Social System GT",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+slouch.output<-append(slouch.output,lapply(ECV.FoDC.SSGT.BoM.BM,function(slouch_data){make.slouch.table(slouch_data,"FF.BM","Fol Diet Categories+Social System GT",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+
+
+##################
+slouch.output<-append(slouch.output,lapply(ECV.GS.SSGT.BoM.OURDF,function(slouch_data){make.slouch.table(slouch_data,"OU.FF.AD.DE","Group Size+Social System GT",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+slouch.output<-append(slouch.output,lapply(ECV.GS.SSGT.BoM.BM,function(slouch_data){make.slouch.table(slouch_data,"FF.BM","Group Size+Social System GT",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+
+
+
+#############################
+slouch.output<-append(slouch.output,lapply(ECV.SSGT.BoM.OUDF,function(slouch_data){make.slouch.table(slouch_data,"OU.FF.DE","Social System GT",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+slouch.output<-append(slouch.output,lapply(ECV.SSGT.BoM.BM,function(slouch_data){make.slouch.table(slouch_data,"FF.BM","Social System GT",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+```
+
+
+## Original DeCasien et al. 2017 Sociality Data
+
+```{r}
+
+
+
+#################
+slouch.output<-append(slouch.output,lapply(ECV.FrDC.GS.SS.BoM.OURDF,function(slouch_data){make.slouch.table(slouch_data,"OU.FF.AD.DE","Frug Diet Categories+Group Size+Social System",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+slouch.output<-append(slouch.output,lapply(ECV.FrDC.GS.SS.BoM.BM,function(slouch_data){make.slouch.table(slouch_data,"FF.BM","Frug Diet Categories+Group Size+Social System",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+
+
+
+#################
+slouch.output<-append(slouch.output,lapply(ECV.FrDC.GS.MS.BoM.OURDF,function(slouch_data){make.slouch.table(slouch_data,"OU.FF.AD.DE","Frug Diet Categories+Group Size+Mating System",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+slouch.output<-append(slouch.output,lapply(ECV.FrDC.GS.MS.BoM.BM,function(slouch_data){make.slouch.table(slouch_data,"FF.BM","Frug Diet Categories+Group Size+Mating System",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+
+
+####################
+slouch.output<-append(slouch.output,lapply(ECV.FrDC.GS.BoM.OURDF,function(slouch_data){make.slouch.table(slouch_data,"OU.FF.AD.DE","Frug Diet Categories+Group Size",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+slouch.output<-append(slouch.output,lapply(ECV.FrDC.GS.BoM.BM,function(slouch_data){make.slouch.table(slouch_data,"FF.BM","Frug Diet Categories+Group Size",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+
+
+
+##################
+slouch.output<-append(slouch.output,lapply(ECV.FrDC.GSC.BoM.OUDF,function(slouch_data){make.slouch.table(slouch_data,"OU.FF.DE","Frug Diet Categories+Group Size Categories",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+slouch.output<-append(slouch.output,lapply(ECV.FrDC.GSC.BoM.BM,function(slouch_data){make.slouch.table(slouch_data,"FF.BM","Frug Diet Categories+Group Size Categories",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+
+
+
+##################
+slouch.output<-append(slouch.output,lapply(ECV.FrDC.SS.BoM.OUDF,function(slouch_data){make.slouch.table(slouch_data,"OU.FF.DE","Frug Diet Categories+Social System",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+slouch.output<-append(slouch.output,lapply(ECV.FrDC.SS.BoM.BM,function(slouch_data){make.slouch.table(slouch_data,"FF.BM","Frug Diet Categories+Social System",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+
+
+
+##################
+slouch.output<-append(slouch.output,lapply(ECV.FrDC.MS.BoM.OUDF,function(slouch_data){make.slouch.table(slouch_data,"OU.FF.DE","Frug Diet Categories+Mating System",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+slouch.output<-append(slouch.output,lapply(ECV.FrDC.MS.BoM.BM,function(slouch_data){make.slouch.table(slouch_data,"FF.BM","Frug Diet Categories+Mating System",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+
+#Folivore
+
+
+###################
+slouch.output<-append(slouch.output,lapply(ECV.FoDC.GS.SS.BoM.OURDF,function(slouch_data){make.slouch.table(slouch_data,"OU.FF.AD.DE","Fol Diet Categories+Group Size+Social System",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+slouch.output<-append(slouch.output,lapply(ECV.FoDC.GS.SS.BoM.BM,function(slouch_data){make.slouch.table(slouch_data,"FF.BM","Fol Diet Categories+Group Size+Social System",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+
+
+
+#################
+slouch.output<-append(slouch.output,lapply(ECV.FoDC.GS.MS.BoM.OURDF,function(slouch_data){make.slouch.table(slouch_data,"OU.FF.AD.DE","Fol Diet Categories+Group Size+Mating System",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+slouch.output<-append(slouch.output,lapply(ECV.FoDC.GS.MS.BoM.BM,function(slouch_data){make.slouch.table(slouch_data,"FF.BM","Fol Diet Categories+Group Size+Mating System",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+
+
+####################
+slouch.output<-append(slouch.output,lapply(ECV.FoDC.GS.BoM.OURDF,function(slouch_data){make.slouch.table(slouch_data,"OU.FF.AD.DE","Fol Diet Categories+Group Size",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+slouch.output<-append(slouch.output,lapply(ECV.FoDC.GS.BoM.BM,function(slouch_data){make.slouch.table(slouch_data,"FF.BM","Fol Diet Categories+Group Size",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+
+
+##################
+slouch.output<-append(slouch.output,lapply(ECV.FoDC.GSC.BoM.OUDF,function(slouch_data){make.slouch.table(slouch_data,"OU.FF.DE","Fol Diet Categories+Group Size Categories",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+slouch.output<-append(slouch.output,lapply(ECV.FoDC.GSC.BoM.BM,function(slouch_data){make.slouch.table(slouch_data,"FF.BM","Fol Diet Categories+Group Size Categories",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+
+
+##################
+slouch.output<-append(slouch.output,lapply(ECV.FoDC.SS.BoM.OUDF,function(slouch_data){make.slouch.table(slouch_data,"OU.FF.DE","Fol Diet Categories+Social System",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+slouch.output<-append(slouch.output,lapply(ECV.FoDC.SS.BoM.BM,function(slouch_data){make.slouch.table(slouch_data,"FF.BM","Fol Diet Categories+Social System",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+
+
+##################
+slouch.output<-append(slouch.output,lapply(ECV.FoDC.MS.BoM.OUDF,function(slouch_data){make.slouch.table(slouch_data,"OU.FF.DE","Fol Diet Categories+Mating System",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+slouch.output<-append(slouch.output,lapply(ECV.FoDC.MS.BoM.BM,function(slouch_data){make.slouch.table(slouch_data,"FF.BM","Fol Diet Categories+Mating System",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+
+#################
+#End of DIET Interaction
+
+
+##################
+slouch.output<-append(slouch.output,lapply(ECV.GS.SS.BoM.OURDF,function(slouch_data){make.slouch.table(slouch_data,"OU.FF.AD.DE","Group Size+Social System",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+slouch.output<-append(slouch.output,lapply(ECV.GS.SS.BoM.BM,function(slouch_data){make.slouch.table(slouch_data,"FF.BM","Group Size+Social System",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+
+
+##################
+slouch.output<-append(slouch.output,lapply(ECV.GS.MS.BoM.OURDF,function(slouch_data){make.slouch.table(slouch_data,"OU.FF.AD.DE","Group Size+Mating System",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+slouch.output<-append(slouch.output,lapply(ECV.GS.MS.BoM.BM,function(slouch_data){make.slouch.table(slouch_data,"FF.BM","Group Size+Mating System",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+
+
+#Single factors in addition to Body Mass
+#############################
+slouch.output<-append(slouch.output,lapply(ECV.FrDC.BoM.OUDF,function(slouch_data){make.slouch.table(slouch_data,"OU.FF.DE","Frug Diet Categories",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+slouch.output<-append(slouch.output,lapply(ECV.FrDC.BoM.BM,function(slouch_data){make.slouch.table(slouch_data,"FF.BM","Frug Diet Categories",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+
+#############################
+slouch.output<-append(slouch.output,lapply(ECV.FoDC.BoM.OUDF,function(slouch_data){make.slouch.table(slouch_data,"OU.FF.DE","Fol Diet Categories",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+slouch.output<-append(slouch.output,lapply(ECV.FoDC.BoM.BM,function(slouch_data){make.slouch.table(slouch_data,"FF.BM","Fol Diet Categories",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+
+#############################
+slouch.output<-append(slouch.output,lapply(ECV.GSC.BoM.OUDF,function(slouch_data){make.slouch.table(slouch_data,"OU.FF.DE","Group Size Categories",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+slouch.output<-append(slouch.output,lapply(ECV.GSC.BoM.BM,function(slouch_data){make.slouch.table(slouch_data,"FF.BM","Group Size Categories",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+
+#############################
+slouch.output<-append(slouch.output,lapply(ECV.SS.BoM.OUDF,function(slouch_data){make.slouch.table(slouch_data,"OU.FF.DE","Social System",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+slouch.output<-append(slouch.output,lapply(ECV.SS.BoM.BM,function(slouch_data){make.slouch.table(slouch_data,"FF.BM","Social System",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+
+#############################
+slouch.output<-append(slouch.output,lapply(ECV.MS.BoM.OUDF,function(slouch_data){make.slouch.table(slouch_data,"OU.FF.DE","Mating System",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+slouch.output<-append(slouch.output,lapply(ECV.MS.BoM.BM,function(slouch_data){make.slouch.table(slouch_data,"FF.BM","Mating System",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])}))
+
+
+
+
+saved.slouch.output.list<-slouch.output
+```
+
+Table testing
+```{r}
+model1<-saved.slouch.output.list[c(1:10)]
+
+slouch.rep<-as.data.frame(data.table::rbindlist(model1[c(1:10)]))
+
+sub.para<-subset(slouch.rep,Parameters==slouch.rep$Parameters[1])  
+mean(sub.para$`Evol Parameter Est.`,na.rm=TRUE)
+min(sub.para$`Evol Parameter Est.`,na.rm=TRUE)
+max(sub.para$`Evol Parameter Est.`,na.rm=TRUE)
+mean(sub.para$`Optimal Parameter Est`,na.rm=TRUE)
+min(sub.para$`Optimal Parameter Est`,na.rm=TRUE)
+max(sub.para$`Optimal Parameter Est`,na.rm=TRUE)
+mean(slouch.rep$`t1/2 (myr)`,na.rm=TRUE)
+
+
+```
+
+
+```{r}
+#Continuous
+###########
+slouch.output<-make.slouch.table(ECV.GS.BoM.OURD,"OU.AD.DE","Group Size",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1])
+slouch.output<-make.slouch.table(ECV.GS.BoM.BM,"BM","Group Size",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1],slouch.output)
+
+
+
+###########
+##################
+slouch.output<-make.slouch.table(ECV.BoM.OU,"OU.DE","Comparison-Body Mass",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1],slouch.output)
+slouch.output<-make.slouch.table(ECV.BoM.BM,"BM","Comparison-Body Mass",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1],slouch.output)
+#######################
+slouch.output<-make.slouch.table(ECV.OU,"OU.NP","ECV~1",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1],slouch.output)
+slouch.output<-make.slouch.table(ECV.BM,"BM.NP","ECV~1",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1],slouch.output)
+######################
+slouch.output<-make.slouch.table(BoM.OU,"OU.NP","Body Mass~1",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1],slouch.output)
+slouch.output<-make.slouch.table(BoM.BM,"BM.NP","Body Mass~1",dim(BrBo.Diet.DC.GS.SS.AP.trdata$dat)[1],slouch.output)
+
+
+#######################
+#slouch.output<-rbind(data.table::rbindlist(saved.slouch.output.list),slouch.output)
+
+slouch.table<-make_regression_table(slouch.output)
+
+```
+
+Save workspace
+```{r}
+save.image("WS from SIMMAP - Haplorrhines - Scaled 062722.RData")
+#load("/Users/markgrabowski/Documents/Academic/Research/Current Projects/Brain Size Diet + Social System - Moved to Mac Pro GD/SB Revision 2/WS/WS from SIMMAP - All Primates - Scaled 042822.RData")
+```
+
+```{r}
+#load("~/Google Drive/Shared with Mac Pro/Brain Size Diet + Social System/SB Revision 1/WS/WS from Ace - All Primates - Scaled SIMMAP 042021.RData")
+
+```
+
+```{r}
+write.csv(saved.discrete.models,"SBR2_Saved_SIMMAP_modeltesting_062722.csv")
+```
+
+
+Make Summary Table/AIC Table from SIMMAP Output and save
+```{r}
+simmap.summary.table<-make.slouch.simmap.table(saved.slouch.output.list,loops.num*sim.num)
+write.csv(simmap.summary.table,"SBR2_SIMMAP_Haplorrhines_Scaled_Discrete_Summary_Table_062722.csv",row.names = FALSE)
+
+simmap.AIC.table<-make.slouch.simmap.AIC.table(saved.slouch.output.list,loops.num*sim.num)
+write.csv(simmap.AIC.table,"SBR2_SIMMAP_Haplorrhines_Scaled_Discrete_AIC_Table_062722.csv",row.names = FALSE)
+
+
+```
+
+
+
+Non-simmap functions
+```{r}
+write.table(slouch.output,"SBR2_SIMMAP_Haplorrhines_Scaled_Cont_Table_062722.csv",sep=",",row.names=FALSE)
+write.table(slouch.table,"SBR2_SIMMAP_Haplorrhines_Scaled_Cont_AIC_Table_062722.csv",sep=",",row.names=FALSE)
+```
+
