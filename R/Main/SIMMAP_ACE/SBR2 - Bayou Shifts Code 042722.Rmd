@@ -1,0 +1,423 @@
+---
+title: "SBR2 - Bayou Shifts Code 042722"
+output: html_notebook
+editor_options: 
+  chunk_output_type: console
+---
+New Categories based on Masahito's suggestion - Frug/Non-Frug, Fol/Non-Fol - using the % time spent feeding as a resource
+
+All Primates Analysis
+```{r}
+rm(list=ls())
+
+#devtools::install_github("kopperud/slouch")
+#devtools::install_github("liamrevell/phytools")
+library(slouch)
+library(phytools)
+
+library(treeplyr)
+#library(bayou)
+library(plyr)
+#library(ape)
+#library(viridis)
+options(scipen=999)
+#For execution on a local, multicore CPU with excess RAM we recommend calling
+#options(mc.cores = parallel::detectCores())
+
+
+source('/Users/markgrabowski/Google Drive/Shared with Mac Pro/Brain Size Diet + Social System/SB Revision 1/Programs/make.slouch.simmap.table.v1.R')
+
+source('/Users/markgrabowski/Google Drive/Shared with Mac Pro/Brain Size Diet + Social System/SB Revision 1/Programs/make.slouch.simmap.AIC.table.R1.v1.R')
+
+source("/Users/markgrabowski/Google Drive/Shared with Mac Pro/Brain Size Diet + Social System/SB Revision 1/Programs/make.regression.table.R1.R")
+
+source('/Users/markgrabowski/Google Drive/Shared with Mac Pro/Brain Size Diet + Social System/SB Revision 1/Programs/make.slouch.table.R1.v1.R')
+
+
+#Pairwise trends
+#source('/Users/markgrabowski/Google Drive/Shared with Mac Pro/Brain Size Diet + Social System/Programs/make.slouch.table.v3.R')
+
+#Taking a portion of the phylogeny and matching up internal nodes
+#source("/Users/markgrabowski/Google Drive/Shared with Mac Pro/Brain Size Diet + Social System/Programs/new.internal.regime.assigments.R")
+
+```
+
+Read in all data, including data on brain and body size with measurement error from Grabowski et al. (2016)
+
+```{r}
+#Orignal submission tree
+#phylo.tree<-read.tree("/Users/markgrabowski/Google Drive/Shared with Mac Pro/Brain Size Diet + Social System/New Data/Tree/AAPA_111118_10K.tre")
+
+#SB Revision 1 Tree
+phylo.tree<-read.tree("/Users/markgrabowski/Google Drive/Shared with Mac Pro/Brain Size Diet + Social System/SB Revision 1/Tree/SB_Rv1_10K.tre")
+
+#After renaming family to Callitrichidae - only change
+brbo.data<-read.csv("/Users/markgrabowski/Google Drive/Shared with Mac Pro/Brain Size Diet + Social System/New Data/ME Data/BrBo_means_predME_10192020_Callitri_tarsiers_step.csv")
+
+diet.data<-read.csv("/Users/markgrabowski/Google Drive/Shared with Mac Pro/Brain Size Diet + Social System/New Data/My Diet Data/Primate_Diet_Breakdown_100119.csv")
+
+avg_GS.data<-read.csv("/Users/markgrabowski/Google Drive/Shared with Mac Pro/Brain Size Diet + Social System/New Data/New Group Size Data/Average.GS.DeCasien.Powell.01232019.csv")
+
+SS.data<-read.csv("/Users/markgrabowski/Google Drive/Shared with Mac Pro/Brain Size Diet + Social System/New Data/New SS Data/DeCasien MG Latest SS 020619.csv")
+
+
+```
+
+Drop tip for Chiropotes satanas to match original submission sample
+```{r}
+#which(phylo.tree$tip.label=="Chiropotes_satanas")
+#length(phylo.tree$tip.label)
+#phylo.tree<-drop.tip(phylo.tree,tip="Chiropotes_satanas")
+#length(phylo.tree$tip.label)
+```
+
+
+Rescale to unit length
+```{r}
+l.tree<-max(branching.times(phylo.tree))
+phylo.tree$edge.length<-phylo.tree$edge.length/l.tree ## rescale tree to height 1
+max(branching.times(phylo.tree))
+
+```
+
+
+Get tree length
+```{r}
+phylo.tree <- multi2di(phylo.tree, random=FALSE)
+phylo.tree$edge.length[phylo.tree$edge.length==0] <- .Machine$double.eps
+
+#Reorder tree "postorder" to match bayou
+#phylo.tree<-reorder(phylo.tree,order = "postorder")
+max(branching.times(phylo.tree))
+```
+
+
+Add on measurement error columns for Brain and Body Size
+```{r}
+#Brain/Body/Diet Data
+brbo.data$N.species
+
+brbo.data<-mutate(brbo.data,me.ECV.species=brbo.data$predict.sp.ln_ECV/brbo.data$N.species)
+brbo.data<-mutate(brbo.data,me.BoM.species=brbo.data$predict.sp.ln_Body.mass/brbo.data$N.body.mass.species)
+
+brbo.data<-mutate(brbo.data,me.ECV.females=brbo.data$predict.F.ln_ECV/brbo.data$N.female)
+brbo.data<-mutate(brbo.data,me.BoM.females=brbo.data$predict.F.ln_Body.mass/brbo.data$N.body.mass.female)
+
+brbo.data<-mutate(brbo.data,me.ECV.males=brbo.data$predict.M.ln_ECV/brbo.data$N.male)
+brbo.data<-mutate(brbo.data,me.BoM.males=brbo.data$predict.M.ln_Body.mass/brbo.data$N.body.mass.male)
+```
+Split into Haplorhinnes vs. Strepsirrhines
+```{r}
+#brbo.data<-filter(brbo.data,Suborder=="Haplorrhini")
+#brbo.data<-filter(brbo.data,Suborder=="Strepsirrhini")
+#brbo.data<-filter(brbo.data,Parvorder=="Catarrhini")
+#brbo.data<-filter(brbo.data,Parvorder=="Platyrrhini")
+
+```
+
+
+Max vy for body mass - add in upper range for vy
+```{r}
+#3* Variance of logged response is good upper range for vy says Kjetil, but too much in this case
+max.vy<-var(log(brbo.data$Body.mass.species.mean),na.rm=TRUE)
+max.hl<-max(branching.times(phylo.tree))
+```
+
+Diet Data, independently
+```{r}
+#Frug/Non Frug, Fol/Non Fol Diet Category Data
+BrBo.diet.data<-merge(brbo.data,diet.data,by="Genus_Species")
+dim(BrBo.diet.data)
+
+BrBo.diet.trdata <- make.treedata(phylo.tree, BrBo.diet.data,name_column="Genus_Species")
+BrBo.diet.trdata<-filter(BrBo.diet.trdata,!is.na(ECV.species.mean)&!is.na(Body.mass.species.mean)&!is.na(Frug.Non.Frug))
+
+dim(BrBo.diet.trdata$dat)
+
+#For original file with non-substuted males/females for species means
+BrBo.diet.trdata<-filter(BrBo.diet.trdata, N.male>=1 & N.body.mass.male>=1 & N.female>=1 & N.body.mass.female>=1 & N.species>1 & N.body.mass.species>1)
+#BrBo.diet.trdata<-filter(BrBo.diet.trdata,N.species!="NA" & N.body.mass.species!="NA")
+
+#BrBo.diet.trdata<-filter(BrBo.diet.trdata, N.species>=1 & N.body.mass.species>=1)
+#BrBo.diet.trdata<-filter(BrBo.diet.trdata,N.species!="NA" & N.body.mass.species!="NA")
+
+dim(BrBo.diet.trdata$dat)
+
+#write.table(BrBo.diet.trdata$dat,"test.csv",sep=",",row.names = FALSE)
+
+```
+
+Setup for Merged Data
+Merged Brain/Body + Diet % + DC + GS + SS, n=114
+```{r}
+BrBo.Diet.GS.data<-merge(BrBo.diet.data,avg_GS.data,by="Genus_Species")
+BrBo.Diet.GS.SS.data<-merge(BrBo.Diet.GS.data,SS.data,by="Genus_Species")
+
+dim(BrBo.Diet.GS.SS.data)
+
+BrBo.Diet.DC.GS.SS.trdata <- make.treedata(phylo.tree, BrBo.Diet.GS.SS.data,name_column="Genus_Species")
+
+BrBo.Diet.DC.GS.SS.trdata<-filter(BrBo.Diet.DC.GS.SS.trdata,!is.na(ECV.species.mean)&!is.na(Body.mass.species.mean)&!is.na(Combo.AGS)&!is.na(Social.System)&!is.na(Frug.Non.Frug ))
+
+BrBo.Diet.DC.GS.SS.trdata<-filter(BrBo.Diet.DC.GS.SS.trdata, N.male>=1 & N.body.mass.male>=1 & N.female>=1 & N.body.mass.female>=1 & N.species>1 & N.body.mass.species>1)
+
+#For original file with non-substuted males/females for species means
+#BrBo.Diet.DC.GS.SS.trdata<-filter(BrBo.Diet.DC.GS.SS.trdata,N.body.mass.male>=1 & N.body.mass.female>=1)
+#BrBo.Diet.DC.GS.SS.trdata<-filter(BrBo.Diet.DC.GS.SS.trdata,N.species!="NA" & N.body.mass.species!="NA")
+
+BrBo.Diet.DC.GS.SS.trdata$dat$Fol.Non.Fol<-revalue(BrBo.Diet.DC.GS.SS.trdata$dat$Fol.Non.Fol,c("Fol"="Folivorous","Non.Fol"="Non"))
+
+BrBo.Diet.DC.GS.SS.trdata$dat$Frug.Non.Frug<-revalue(BrBo.Diet.DC.GS.SS.trdata$dat$Frug.Non.Frug,c("Frug"="Frugivorous","Non.Frug"="Non"))
+
+dim(BrBo.Diet.DC.GS.SS.trdata$dat)
+
+```
+Break average group size continuous variable into categories
+```{r}
+#################
+library(ape)
+
+#Group size into 
+gs.cat<-cut(BrBo.Diet.DC.GS.SS.trdata$dat$Combo.AGS,
+    breaks = c(0,5, 10, 25, 50,Inf), 
+    labels = c("1-5","6-10","11-25","26-50",">50"), 
+    right = FALSE)
+
+BrBo.Diet.DC.GS.SS.trdata$dat$Cat.group.size<-gs.cat
+```
+
+```{r}
+max(branching.times(BrBo.Diet.DC.GS.SS.trdata$phy))
+
+source("/Users/markgrabowski/Google Drive/Shared with Mac Pro/Brain Size Diet + Social System/Programs/bayou2slouch.R")
+
+plot(BrBo.Diet.DC.GS.SS.trdata$phy,font=1,cex=0.25,label.offset = 0);
+nodelabels(bg="white",cex=0.2,frame="none",adj=c(1,0));
+tiplabels(bg="white",cex=0.2,frame="none",adj=c(1,0))
+
+#Send shifts to bayou2slouch for regime assignments
+output<-bayou2slouch(BrBo.Diet.DC.GS.SS.trdata,c(128,130,213))
+#output<-bayou2slouch(BrBo.Diet.DC.GS.SS.bayou.trdata,c(126,128))
+
+#Haplorrhines w/ shift in platyrrhines
+#output<-bayou2slouch(BrBo.Diet.DC.GS.SS.bayou.trdata,c(XX))
+#Platyrrhines w/ shift within this group
+#output<-bayou2slouch(BrBo.Diet.DC.GS.SS.bayou.trdata,c(XX))
+
+BrBo.Diet.DC.GS.SS.bayou.trdata<-output[[1]]
+internal.bayou.shifts<-output[[2]]
+
+bayou.shifts.total<-c(BrBo.Diet.DC.GS.SS.bayou.trdata$dat$bayou.shifts,internal.bayou.shifts)
+num.tips<-length(BrBo.Diet.DC.GS.SS.bayou.trdata$phy$tip.label)
+
+#Num of node we want to change proceeding branch - 208 in this case
+#change.node<-208-num.tips
+change.node<-213-num.tips
+
+internal.bayou.shifts[change.node]<-"OU2"
+
+#BrBo.Diet.DC.GS.SS.bayou.trdata
+```
+
+Test bayou shifts code - does it produce same plot?
+```{r}
+bayou.shifts.total<-c(BrBo.Diet.DC.GS.SS.bayou.trdata$dat$bayou.shifts,internal.bayou.shifts)
+  edge.regimes <- factor(bayou.shifts.total[BrBo.Diet.DC.GS.SS.bayou.trdata$phy$edge[,2]])
+  print(edge.regimes)
+  #Get ggplot colors used for plot to make on tree
+  gg_color_hue <- function(n) {
+    hues = seq(15, 375, length=n+1)
+    hcl(h=hues, l=65, c=100)[1:n]
+  }
+  
+  reg.colors<-gg_color_hue(length(unique(BrBo.Diet.DC.GS.SS.bayou.trdata$dat$bayou.shifts)))
+
+  print(reg.colors)
+  plot(BrBo.Diet.DC.GS.SS.bayou.trdata$phy,edge.color = reg.colors[edge.regimes], edge.width = 1, cex = 0.2)
+  
+
+
+
+```
+
+
+
+```{r}
+
+############
+#Group Size
+BrBo.Diet.DC.GS.SS.bayou.trdata$phy$node.label <- internal.bayou.shifts
+
+ECV.GS.BoM.OURD<-slouch.fit(phy = BrBo.Diet.DC.GS.SS.bayou.trdata$phy,
+                                     species = BrBo.Diet.DC.GS.SS.bayou.trdata$phy$tip.label,
+                                     response = log(BrBo.Diet.DC.GS.SS.bayou.trdata$dat$ECV.species.mean),
+                                     random.cov = log(BrBo.Diet.DC.GS.SS.bayou.trdata$dat$Combo.AGS),
+                                     fixed.fact = BrBo.Diet.DC.GS.SS.bayou.trdata$dat$bayou.shifts,
+
+                                     direct.cov = log(BrBo.Diet.DC.GS.SS.bayou.trdata$dat$Body.mass.species.mean),
+                                     mv.response=BrBo.Diet.DC.GS.SS.bayou.trdata$dat$me.ECV.species,
+                                     mv.direct.cov = BrBo.Diet.DC.GS.SS.bayou.trdata$dat$me.BoM.species,
+                                     hl_values = seq(0.00001, max.hl*3, length.out = 50),
+                                     vy_values = seq(0.00001, 1, length.out = 50),
+                                     hillclimb = FALSE,convergence = 150,
+                                     lower = c(0.00001, 0.00001))
+
+summary(ECV.GS.BoM.OURD)
+
+
+ECV.GS.BoM.BM<-brown.fit(phy = BrBo.Diet.DC.GS.SS.bayou.trdata$phy,
+                                 species = BrBo.Diet.DC.GS.SS.bayou.trdata$phy$tip.label,
+                                 response = log(BrBo.Diet.DC.GS.SS.bayou.trdata$dat$ECV.species.mean),
+                                                              fixed.fact = BrBo.Diet.DC.GS.SS.bayou.trdata$dat$bayou.shifts,
+
+                                     random.cov = log(BrBo.Diet.DC.GS.SS.bayou.trdata$dat$Combo.AGS),
+                                     direct.cov = log(BrBo.Diet.DC.GS.SS.bayou.trdata$dat$Body.mass.species.mean),
+                                     mv.response=BrBo.Diet.DC.GS.SS.bayou.trdata$dat$me.ECV.species,
+                                     mv.direct.cov = BrBo.Diet.DC.GS.SS.bayou.trdata$dat$me.BoM.species,
+                                 hillclimb = TRUE,convergence = 150,
+                                 lower = c(0.00001, 0.00001))
+
+summary(ECV.GS.BoM.BM)
+
+
+```
+
+```{r}
+BrBo.Diet.DC.GS.SS.bayou.trdata$phy$node.label <- internal.bayou.shifts
+
+#OU Model of Evolution
+ECV.BoM.OU<-slouch.fit(phy = BrBo.Diet.DC.GS.SS.bayou.trdata$phy,
+                              species = BrBo.Diet.DC.GS.SS.bayou.trdata$phy$tip.label,
+                              response = log(BrBo.Diet.DC.GS.SS.bayou.trdata$dat$ECV.species.mean),
+                              direct.cov = log(BrBo.Diet.DC.GS.SS.bayou.trdata$dat$Body.mass.species.mean),
+                              fixed.fact = BrBo.Diet.DC.GS.SS.bayou.trdata$dat$bayou.shifts,
+
+                              mv.response=BrBo.Diet.DC.GS.SS.bayou.trdata$dat$me.ECV.species,
+                              mv.direct.cov = BrBo.Diet.DC.GS.SS.bayou.trdata$dat$me.BoM.species,
+                              hl_values = seq(0.00001, max.hl*3, length.out = 50),
+                              vy_values = seq(0.00001, 1, length.out = 50),
+                              hillclimb = FALSE,convergence = 150,
+                              lower = c(0.00001, 0.00001))
+
+summary(ECV.BoM.OU)
+
+
+#BM Model of Evolution
+ECV.BoM.BM<-brown.fit(phy = BrBo.Diet.DC.GS.SS.bayou.trdata$phy,
+                              species = BrBo.Diet.DC.GS.SS.bayou.trdata$phy$tip.label,
+                              response = log(BrBo.Diet.DC.GS.SS.bayou.trdata$dat$ECV.species.mean),
+                              direct.cov = log(BrBo.Diet.DC.GS.SS.bayou.trdata$dat$Body.mass.species.mean),
+                                                    fixed.fact = BrBo.Diet.DC.GS.SS.bayou.trdata$dat$bayou.shifts,
+
+                              mv.response=BrBo.Diet.DC.GS.SS.bayou.trdata$dat$me.ECV.species,
+                              mv.direct.cov = BrBo.Diet.DC.GS.SS.bayou.trdata$dat$me.BoM.species,
+                              hillclimb = TRUE,convergence = 150,
+                              lower = c(0.00001, 0.00001))
+
+
+summary(ECV.BoM.BM)
+
+```
+
+```{r}
+#OU Model of Evolution
+ECV.OU<-slouch.fit(phy = BrBo.Diet.DC.GS.SS.bayou.trdata$phy,
+                              species = BrBo.Diet.DC.GS.SS.bayou.trdata$phy$tip.label,
+                              response = log(BrBo.Diet.DC.GS.SS.bayou.trdata$dat$ECV.species.mean),
+                              fixed.fact = BrBo.Diet.DC.GS.SS.bayou.trdata$dat$bayou.shifts,
+
+                              mv.response=BrBo.Diet.DC.GS.SS.bayou.trdata$dat$me.ECV.species,
+                              hl_values = seq(0.00001, max.hl*3, length.out = 50),
+                              vy_values = seq(0.00001, 10, length.out = 50),
+                              hillclimb = FALSE,convergence = 150,
+                              lower = c(0.00001, 0.00001))
+
+summary(ECV.OU)
+
+
+#BM Model of Evolution
+ECV.BM<-brown.fit(phy = BrBo.Diet.DC.GS.SS.bayou.trdata$phy,
+                              species = BrBo.Diet.DC.GS.SS.bayou.trdata$phy$tip.label,
+                              response = log(BrBo.Diet.DC.GS.SS.bayou.trdata$dat$ECV.species.mean),
+                                                fixed.fact = BrBo.Diet.DC.GS.SS.bayou.trdata$dat$bayou.shifts,
+
+                              mv.response=BrBo.Diet.DC.GS.SS.bayou.trdata$dat$me.ECV.species,
+                              hillclimb = TRUE,convergence = 150,
+                              lower = c(0.00001, 0.00001))
+
+
+summary(ECV.BM)
+
+```
+
+```{r}
+#OU Model of Evolution
+BoM.OU<-slouch.fit(phy = BrBo.Diet.DC.GS.SS.bayou.trdata$phy,
+                              species = BrBo.Diet.DC.GS.SS.bayou.trdata$phy$tip.label,
+                              response = log(BrBo.Diet.DC.GS.SS.bayou.trdata$dat$Body.mass.species.mean),
+                                                 fixed.fact = BrBo.Diet.DC.GS.SS.bayou.trdata$dat$bayou.shifts,
+
+                              mv.response=BrBo.Diet.DC.GS.SS.bayou.trdata$dat$me.BoM.species,
+                              hl_values = seq(0.00001, max.hl*3, length.out = 50),
+                              vy_values = seq(0.00001, 10, length.out = 50),
+                              hillclimb = FALSE,convergence = 150,
+                              lower = c(0.00001, 0.00001))
+
+summary(BoM.OU)
+
+
+#BM Model of Evolution
+BoM.BM<-brown.fit(phy = BrBo.Diet.DC.GS.SS.bayou.trdata$phy,
+                              species = BrBo.Diet.DC.GS.SS.bayou.trdata$phy$tip.label,
+                              response = log(BrBo.Diet.DC.GS.SS.bayou.trdata$dat$Body.mass.species.mean),
+                                                fixed.fact = BrBo.Diet.DC.GS.SS.bayou.trdata$dat$bayou.shifts,
+
+                              mv.response=BrBo.Diet.DC.GS.SS.bayou.trdata$dat$me.BoM.species,
+                              hillclimb = TRUE,convergence = 150,
+                              lower = c(0.00001, 0.00001))
+
+
+summary(BoM.BM)
+
+```
+
+
+```{r}
+
+#Single factors in addition to Body Mass
+###########
+slouch.output<-make.slouch.table(ECV.GS.BoM.OURD,"OU.AD.DE","Group Size",dim(BrBo.Diet.DC.GS.SS.bayou.trdata$dat)[1])
+slouch.output<-make.slouch.table(ECV.GS.BoM.BM,"BM","Group Size",dim(BrBo.Diet.DC.GS.SS.bayou.trdata$dat)[1],slouch.output)
+####
+slouch.output<-make.slouch.table(ECV.BoM.OU,"OU.DE","Comparison-Body Mass",dim(BrBo.Diet.DC.GS.SS.bayou.trdata$dat)[1],slouch.output)
+slouch.output<-make.slouch.table(ECV.BoM.BM,"BM","Comparison-Body Mass",dim(BrBo.Diet.DC.GS.SS.bayou.trdata$dat)[1],slouch.output)
+
+slouch.output<-make.slouch.table(ECV.OU,"OU.NP","ECV~1",dim(BrBo.Diet.DC.GS.SS.bayou.trdata$dat)[1],slouch.output)
+slouch.output<-make.slouch.table(ECV.BM,"BM.NP","ECV~1",dim(BrBo.Diet.DC.GS.SS.bayou.trdata$dat)[1],slouch.output)
+
+slouch.output<-make.slouch.table(BoM.OU,"OU.NP","Body Mass~1",dim(BrBo.Diet.DC.GS.SS.bayou.trdata$dat)[1],slouch.output)
+slouch.output<-make.slouch.table(BoM.BM,"BM.NP","Body Mass~1",dim(BrBo.Diet.DC.GS.SS.bayou.trdata$dat)[1],slouch.output)
+
+
+slouch.table<-make_regression_table(slouch.output)
+
+```
+
+
+```{r}
+save.image("/Users/markgrabowski/Google Drive/Shared with Mac Pro/Brain Size Diet + Social System/SB Revision 1/WS/SIMMAP - Constrained/WS from SIMMAP ACE + Bayou Shifts - All Primates - Scaled Slouch 128 sp 081121_hcfalse.RData")
+```
+
+```{r}
+#load("/Users/markgrabowski/Google Drive/Shared with Mac Pro/Brain Size Diet + Social System/SB Revision 1/WS/Scaled/WS from Ace - All Primates - Scaled Slouch 042721_hcfalse.RData")
+```
+
+
+```{r}
+write.table(slouch.output,"SBR1_bayou_shifts_ACE_All_Primates_Scaled_Slouch_Table_082121_hcfalse.csv",sep=",",row.names=FALSE)
+write.table(slouch.table,"SBR1_bayou_shifts_ACE_All_Primates_Scaled_AIC_Table_082121_hcfalse.csv",sep=",",row.names=FALSE)
+
+
+```
+
+
