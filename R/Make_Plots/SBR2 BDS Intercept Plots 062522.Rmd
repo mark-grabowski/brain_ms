@@ -1,0 +1,383 @@
+---
+title: "SB R2 BDS ms Intercept Plots - All Primates"
+output: html_notebook
+editor_options: 
+  chunk_output_type: console
+---
+Run: SIMMAPS 062522 v1
+	Testing revised data from R2 but running original fitMk program, not parallel
+	Gorilla g in strict classification is folivore
+	Predictors:
+		Fol.Non.Fol.Strict
+		Fol.Non.Fol.Per
+		Frug.Non.Frug.Per
+		Social.System.DRclass
+		Social.System.DGT
+		Mating.System
+		GSC >50
+		Activity Period
+
+```{r}
+rm(list=ls())
+library(ggplot2)
+library(phytools)
+library(viridis)
+library(RColorBrewer)
+library("ggsci")
+library(directlabels)
+library(dplyr)
+library(plyr)
+library(scales)
+#Taking a portion of the phylogeny and matching up intternal nodes
+source("/Volumes/GoogleDrive/My Drive/Shared with Mac Pro/Brain Size Diet + Social System/Programs/new.internal.regime.assigments.R")
+
+#Load workspace
+load("/Users/markgrabowski/Documents/Academic/Research/Current Projects/Brain Size Diet + Social System/SB Revision 2/Results/SIMMAPS 062522 v1/SIMMAP ACE/All Primates/SBR2 - WS from SIMMAP ACE - All Primates - 128 sp - Scaled 062522.RData")
+```
+
+
+#######
+Fig. S10b: Diet Categories + MS Reconstructions Phylogeny
+```{r}
+regimes<-c(as.factor(paste(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Fol.Non.Fol.Strict,BrBo.Diet.DC.GS.SS.AP.trdata$dat$Mating.System)),factor(internal.regimes.FoDCS.ms))
+
+#regimes<-internal.regimes.FoDC.ms.ap
+
+#regimes <- factor(regimes, levels = c("Folivorous Spatial Polygyny Nocturnal","Folivorous Monogamy Nocturnal","Folivorous Monogamy Diurnal","Folivorous Polygynandry Diurnal","Folivorous Harem Polygyny Diurnal","Non-folivorous Spatial Polygyny Nocturnal","Non-folivorous Spatial Polygyny Diurnal","Non-folivorous Monogamy Nocturnal","Non-folivorous Monogamy Diurnal","Non-folivorous Polyandry Diurnal","Non-folivorous Polygynandry Diurnal", "Non-folivorous Harem Polygyny Diurnal"))
+
+regimes<-gsub("Non.Fol","Non",regimes)
+sub.regimes<-substring(regimes,5)
+
+fol.regimes<-substring(regimes,1,3)
+
+sub.regimes <- factor(sub.regimes, levels = c("Spatial Polygyny","Monogamy","Polyandry","Polygynandry","Harem Polygyny"))
+
+levels(sub.regimes)
+
+reg.colors<-pal_aaas()(length(unique(sub.regimes)))
+
+show_col(reg.colors)
+
+
+###################
+
+edge.regimes <- factor(sub.regimes[BrBo.Diet.DC.GS.SS.AP.trdata$phy$edge[,2]])
+fol.edge.regimes <- as.numeric(factor(fol.regimes[BrBo.Diet.DC.GS.SS.AP.trdata$phy$edge[,2]]))
+
+
+#edge.regimes <-factor(sub.regimes)
+#fol.edge.regimes <- as.numeric(factor(fol.regimes))
+#BrBo.Diet.DC.GS.SS.AP.trdata
+
+#plot(BrBo.Diet.DC.GS.SS.trdata$phy,edge.color = reg.colors[edge.regimes], edge.width = 1.75, cex = 0.3) #10X12
+fol.edge.regimes[fol.edge.regimes==1]<-6
+fol.edge.regimes[fol.edge.regimes==2]<-1
+#fol.edge.regimes[fol.edge.regimes==3]<-2
+#fol.non.categories[fol.non.categories$BrBo.Diet.DC.GS.SS.trdata.dat.Fol.Non.Fol=="Non",1]<-1
+#fol.non.categories[fol.non.categories$BrBo.Diet.DC.GS.SS.trdata.dat.Fol.Non.Fol!="Non",1]<-2
+plot(BrBo.Diet.DC.GS.SS.AP.trdata$phy,edge.color = reg.colors[edge.regimes], edge.lty = fol.edge.regimes,edge.width = 1.75, cex = 0.000001)
+#6X4
+```
+
+
+Fig. S10a: Diet Categories + MS Reconstructions Regression Plot
+```{r}
+regimes<-c(as.factor(paste(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Fol.Non.Fol.Strict,BrBo.Diet.DC.GS.SS.AP.trdata$dat$Mating.System)))
+
+regimes<-gsub("Non.Fol","Non",regimes)
+
+regimes <- factor(regimes, levels = c("Fol Spatial Polygyny","Fol Monogamy","Fol Polygynandry","Fol Harem Polygyny","Non Spatial Polygyny","Non Monogamy","Non Polyandry","Non Polygynandry", "Non Harem Polygyny"))
+
+sub.regimes<-substring(regimes,5)
+
+fol.regimes<-substring(regimes,1,3)
+fol.regimes <- factor(fol.regimes, levels = c("Non","Fol"))
+fol.shapes<-c(21,22)
+
+sub.regimes <- factor(sub.regimes, levels = c("Spatial Polygyny","Monogamy","Polyandry","Polygynandry","Harem Polygyny"))
+
+levels(sub.regimes)
+
+reg.colors<-pal_aaas()(length(unique(sub.regimes)))
+
+show_col(reg.colors)
+
+#############
+test<-ECV.FoDCS.GS.MS.BoM.BM$beta_primary$coefficients
+#rownames(test)<-gsub("Fol","Folivorous",rownames(test))
+rownames(test)<-gsub("Non.Fol","Non",rownames(test))
+
+#regimes<-gsub("Non.Fol","Non",intercepts)
+
+
+intercepts<-test[match(levels(regimes),rownames(test)),]
+intercepts
+#reg.colors<-pal_aaas()(length(unique(reordered.regimes)))
+slope<-ECV.FoDCS.GS.MS.BoM.BM$beta_primary$coefficients[10]
+
+```
+
+
+```{r}
+ms.plot<-ggplot(BrBo.Diet.DC.GS.SS.AP.trdata$dat,aes(y=log(ECV.species.mean),x=log(Body.mass.species.mean),fill=regimes,shape=regimes))
+
+ms.plot<-ms.plot+geom_point(size=3.5,color="white") 
+ms.plot<-ms.plot+xlab("log Body Mass (g)")+ylab("log Endocranial Volume (cc)")
+                                     ms.plot<-ms.plot+theme(axis.text=element_text(size=16),axis.title=element_text(size=16),legend.title=element_text(size=10),legend.text=element_text(size=12),
+
+# Remove panel border
+#panel.border = element_line("black"),
+# Remove panel grid lines
+panel.grid.major = element_line("gray95"),
+panel.grid.minor = element_line("gray95"),
+panel.background = element_blank(),
+panel.border = element_rect(colour = "black", fill=NA, size=0.5)
+#,legend.position="none"
+)
+ms.plot<-ms.plot+theme(legend.key = element_rect(fill = "white"),legend.title = element_text(size=14) )
+#+scale_x_continuous(expand=c(0.5,0))
+
+
+ms.plot<-ms.plot+geom_abline(intercept = intercepts[1,1],slope=slope,color=reg.colors[1],linetype=2,size=0.75)
+ms.plot<-ms.plot+geom_abline(intercept = intercepts[2,1],slope=slope,color=reg.colors[2],linetype=2,size=0.75)
+ms.plot<-ms.plot+geom_abline(intercept = intercepts[3,1],slope=slope,color=reg.colors[4],linetype=2,size=0.75)
+ms.plot<-ms.plot+geom_abline(intercept = intercepts[4,1],slope=slope,color=reg.colors[5],linetype=1,size=0.75)
+ms.plot<-ms.plot+geom_abline(intercept = intercepts[5,1],slope=slope,color=reg.colors[1],linetype=1,size=0.75)
+ms.plot<-ms.plot+geom_abline(intercept = intercepts[6,1],slope=slope,color=reg.colors[2],linetype=1,size=0.75)
+ms.plot<-ms.plot+geom_abline(intercept = intercepts[7,1],slope=slope,color=reg.colors[3],linetype=1,size=0.75)
+ms.plot<-ms.plot+geom_abline(intercept = intercepts[8,1],slope=slope,color=reg.colors[4],linetype=1,size=0.75)
+ms.plot<-ms.plot+geom_abline(intercept = intercepts[9,1],slope=slope,color=reg.colors[5],linetype=1,size=0.75)
+
+single.regimes<-c("Folivorous Spatial Polygyny","Folivorous Monogamy","Folivorous Polygynandry","Folivorous Harem Polygyny","Non-folivorous Spatial Polygyny","Non-folivorous Monogamy","Non-folivorous Polyandry","Non-folivorous Polygynandry", "Non-folivorous Harem Polygyny")
+
+
+#ms.plot<-ms.plot+labs(fill="Diet Categories+ \nMating System") #For famililes = shapes
+ms.plot<-ms.plot+
+scale_fill_manual(values=reg.colors[c(1,2,4,5,1,2,3,4,5)],name="Diet + Mating System",labels=single.regimes)+
+scale_shape_manual(values=fol.shapes[c(2,2,2,2,1,1,1,1,1)],name="Diet + Mating System",labels=single.regimes)
+
+#Diet Categories+ \nMating System+ \nActivity Period
+#ms.plot<-ms.plot+guides(fill = guide_legend(override.aes = list(size=5)))
+ms.plot
+
+#6 X 10 Small Pdf
+#8 X 12, large PDF
+#library(plotly)
+#ggplotly()
+```
+
+Intercept Plots
+```{r}
+detach("package:plyr", unload=TRUE)
+
+library(dplyr)
+
+single.regimes<-c("Fol Spatial Polygyny","Fol Monogamy","Fol Polygynandry","Fol Harem Polygyny","Non Spatial Polygyny","Non Monogamy","Non Polyandry","Non Polygynandry", "Non Harem Polygyny")
+
+
+log.BoM.grand.mean<-mean(log(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Body.mass.species.mean))
+
+BoM.category.data<-data.frame(BrBo.Diet.DC.GS.SS.AP.trdata$dat,Categories=as.factor(paste(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Fol.Non.Fol.Strict,BrBo.Diet.DC.GS.SS.AP.trdata$dat$Mating.System)))
+
+BoM.category.data<-data.frame(BoM.category.data,Genus_Species=BrBo.Diet.DC.GS.SS.AP.trdata$phy$tip.label)
+
+BoM.category.data$Categories<-gsub("Non.Fol","Non",BoM.category.data$Categories)
+BoM.category.data$Categories<-gsub("Folivorous","Fol",BoM.category.data$Categories)
+
+BoM.category.data
+#################################
+
+BoM.category.means<-data.frame(BoM.category.data%>%group_by(Categories)%>%summarize(log.ECV.mean=mean(log(ECV.species.mean),na.rm=TRUE),log.BoM.mean=mean(log(Body.mass.species.mean),na.rm=TRUE)))
+
+#BoM.category.means<-cbind(BoM.category.means,intercepts[match(row.names(intercepts),BoM.category.means$Categories),])
+
+BoM.category.means<-cbind(BoM.category.means,intercepts[match(BoM.category.means$Categories,row.names(intercepts)),])
+
+
+BoM.category.means<-data.frame(BoM.category.means%>%group_by(Categories)%>%mutate(pred.ECV=slope*log.BoM.grand.mean+Estimates))
+#BoM.category.means<-data.frame(BoM.category.means%>%group_by(Categories)%>%mutate(pred.ECV=slope*log.BoM.mean+Intercept))
+
+#Reorder means
+BoM.category.means<-BoM.category.means[match(single.regimes,BoM.category.means$Categories),]
+
+#Turn your 'treatment' column into a character vector
+BoM.category.means$Categories <- as.character(BoM.category.means$Categories)
+#Then turn it back into a factor with the levels in the correct order
+BoM.category.means$Categories <- factor(BoM.category.means$Categories, levels=unique(BoM.category.means$Categories))
+
+BoM.category.means
+###################
+
+BoM.category.data<-data.frame(BoM.category.data%>%group_by(Categories)%>%mutate(log.ECV.mean=mean(log(ECV.species.mean),na.rm=TRUE),log.BoM.mean=mean(log(Body.mass.species.mean),na.rm=TRUE)))
+
+BoM.category.data$Estimates<-BoM.category.means$Estimates[match(BoM.category.data$Categories,BoM.category.means$Categories)]
+
+#BoM.category.data<-data.frame(BoM.category.data%>%group_by(Categories)%>%mutate(y.delta=log(ECV.species.mean)-(slope*log(Body.mass.species.mean)+Intercept),y.new=slope*log.BoM.mean+Intercept+y.delta))
+
+BoM.category.data<-data.frame(BoM.category.data%>%group_by(Categories)%>%mutate(y.delta=log(ECV.species.mean)-(slope*log(Body.mass.species.mean)+Estimates),y.new=slope*log.BoM.grand.mean+Estimates+y.delta))
+
+#Reorder Rows to match categories  
+BoM.category.data<-BoM.category.data%>%arrange(factor(Categories,levels=single.regimes))
+
+#Turn your 'treatment' column into a character vector
+BoM.category.data$Categories <- as.character(BoM.category.data$Categories)
+#Then turn it back into a factor with the levels in the correct order
+BoM.category.data$Categories <- factor(BoM.category.data$Categories, levels=unique(BoM.category.data$Categories))
+
+
+####
+#reordered.regimes.non.fol <-c("Spatial Polygyny Nocturnal","Spatial Polygyny Diurnal","Monogamy Nocturnal","Monogamy Diurnal","Polyandry Diurnal","Polygynandry Nocturnal","Polygynandry Diurnal","Harem Polygyny Diurnal")
+
+#reg.colors<-pal_aaas()(length(unique(reordered.regimes.non.fol)))
+
+library(scales)
+show_col(reg.colors)
+
+#gsc.ap.regimes<-c(1,3,6,8,9,1,2,3,4,5,6,7,8,9,10)
+error.bar.type<-c(4,4,4,4,1,1,1,1,1)
+
+labels<-c("FSP","FM","FPG","FHP","NFSP","NFM","NFP","NFPG","NFHP")
+
+#reordered.single.regimes<-c("Folivorous Spatial Polygyny Nocturnal","Folivorous Monogamy Nocturnal","Folivorous Monogamy Diurnal","Folivorous Polygynandry Diurnal","Folivorous Harem Polygyny Diurnal","Non-folivorous Spatial Polygyny Nocturnal","Non-folivorous Spatial Polygyny Diurnal","Non-folivorous Monogamy Nocturnal","Non-folivorous Monogamy Diurnal","Non-folivorous Polyandry Diurnal","Non-folivorous Polygynandry Nocturnal","Non-folivorous Polygynandry Diurnal", "Non-folivorous Harem Polygyny Diurnal")
+
+
+#################
+ms.plot<-ggplot(data=BoM.category.means,aes(x=Categories,y=pred.ECV))+
+  geom_jitter(BoM.category.data,mapping=aes(x=Categories,y=y.new,fill=Categories,shape=Categories),size=2.5,color="white",alpha=0.5,width=0.1)+
+  #geom_errorbar(aes(ymin=pred.ECV-Std..error,ymax=pred.ECV+Std..error),width=0.2,linetype=error.bar.type)+
+  geom_errorbar(aes(ymin=pred.ECV-Std..error,ymax=pred.ECV+Std..error),width=0.2,linetype=1)+
+  geom_point(data=BoM.category.means,mapping=aes(fill=Categories,shape=Categories),size=5,color="white")+ggtitle("All Primates")
+  
+ms.plot<-ms.plot+xlab("Diet + Mating System")+ylab("ECV (cc)")
+
+#Add extant species to plot
+#ms.plot<-ms.plot+geom_point(BoM.category.data,mapping=aes(x=Categories,y=log(ECV.species.mean),fill=Categories),pch=21,size=2,color="white",position="jitter",alpha=0.5)
+
+                                          
+ms.plot<-ms.plot+theme(axis.text=element_text(size=12),axis.title=element_text(size=12),legend.title=element_text(size=10),legend.text=element_text(size=12),
+axis.text.x = element_text(angle = 0,vjust=1,hjust=0.5,size=10),
+#plot.margin=unit(c(5.5,5.5,5.5,40),"points"),
+
+#In the case it's helpful to anyone else, here are the arguments to margin (denoting to which side each value corresponds): margin(t = 0, r = 0, b = 0, l = 0, unit = "pt") – Joshua Rosenberg Mar 20 '18 at 0:14
+
+
+# Remove panel border
+#panel.border = element_line("black"),
+# Remove panel grid lines
+panel.grid.major = element_line("gray95"),
+panel.grid.minor = element_line("gray95"),
+panel.background = element_blank(),
+
+panel.border = element_rect(colour = "black", fill=NA, size=0.5),
+plot.title = element_text(size=16)
+#,legend.position="none"
+)
+ms.plot<-ms.plot+
+
+scale_fill_manual(values=reg.colors[c(1,2,4,5,1,2,3,4,5)],name="Diet + Mating System",labels=single.regimes)+
+scale_shape_manual(values=fol.shapes[c(2,2,2,2,1,1,1,1,1)],name="Diet + Mating System",labels=single.regimes)
+
+
+#ms.plot<-ms.plot+scale_fill_manual(values=reg.colors)
+ms.plot<-ms.plot+theme(legend.position = "none")
+ms.plot<-ms.plot+scale_x_discrete(labels=c(labels))
+#ms.plot<-ms.plot+theme(legend.key = element_rect(fill = "white"),legend.title = element_text(size=14) )
+ms.plot
+
+#5X5
+```
+
+Fig SX: Diet and Mating System with families as shapes
+```{r}
+regimes<-c(as.factor(paste(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Fol.Non.Fol.Strict,BrBo.Diet.DC.GS.SS.AP.trdata$dat$Mating.System)))
+
+regimes<-gsub("Non.Fol","Non",regimes)
+
+regimes <- factor(regimes, levels = c("Fol Spatial Polygyny","Fol Monogamy","Fol Polygynandry","Fol Harem Polygyny","Non Spatial Polygyny","Non Monogamy","Non Polyandry","Non Polygynandry", "Non Harem Polygyny"))
+
+reg.colors<-pal_aaas()(length(unique(regimes)))
+
+sub.regimes<-substring(regimes,5)
+
+fol.regimes<-substring(regimes,1,3)
+fol.regimes <- factor(fol.regimes, levels = c("Non","Fol"))
+fol.shapes<-c(21,22)
+
+sub.regimes <- factor(sub.regimes, levels = c("Spatial Polygyny","Monogamy","Polyandry","Polygynandry","Harem Polygyny"))
+
+levels(sub.regimes)
+
+#reg.colors<-pal_aaas()(length(unique(sub.regimes)))
+
+#show_col(reg.colors)
+
+#############
+test<-ECV.FoDCS.GS.MS.BoM.BM$beta_primary$coefficients
+#rownames(test)<-gsub("Fol","Folivorous",rownames(test))
+rownames(test)<-gsub("Non.Fol","Non",rownames(test))
+
+#regimes<-gsub("Non.Fol","Non",intercepts)
+
+
+intercepts<-test[match(levels(regimes),rownames(test)),]
+intercepts
+#reg.colors<-pal_aaas()(length(unique(reordered.regimes)))
+slope<-ECV.FoDCS.GS.MS.BoM.BM$beta_primary$coefficients[10]
+
+```
+
+
+```{r}
+ms.plot<-ggplot(BrBo.Diet.DC.GS.SS.AP.trdata$dat,aes(y=log(ECV.species.mean),x=log(Body.mass.species.mean),color=regimes,shape=factor(Family)))
+
+ms.plot<-ms.plot+geom_point(mapping=aes(color=regimes),size=3.5)
+ms.plot<-ms.plot+xlab("log Body Mass (g)")+ylab("log Endocranial Volume (cc)")
+                                     ms.plot<-ms.plot+theme(axis.text=element_text(size=16),axis.title=element_text(size=16),legend.title=element_text(size=10),legend.text=element_text(size=12),
+
+# Remove panel border
+#panel.border = element_line("black"),
+# Remove panel grid lines
+panel.grid.major = element_line("gray95"),
+panel.grid.minor = element_line("gray95"),
+panel.background = element_blank(),
+panel.border = element_rect(colour = "black", fill=NA, size=0.5)
+#,legend.position="none"
+)
+ms.plot<-ms.plot+theme(legend.key = element_rect(fill = "white"),legend.title = element_text(size=14) )
+#+scale_x_continuous(expand=c(0.5,0))
+
+
+ms.plot<-ms.plot+geom_abline(intercept = intercepts[1,1],slope=slope,color=reg.colors[1],linetype=2,size=0.75)
+ms.plot<-ms.plot+geom_abline(intercept = intercepts[2,1],slope=slope,color=reg.colors[2],linetype=2,size=0.75)
+ms.plot<-ms.plot+geom_abline(intercept = intercepts[3,1],slope=slope,color=reg.colors[3],linetype=2,size=0.75)
+ms.plot<-ms.plot+geom_abline(intercept = intercepts[4,1],slope=slope,color=reg.colors[4],linetype=1,size=0.75)
+ms.plot<-ms.plot+geom_abline(intercept = intercepts[5,1],slope=slope,color=reg.colors[5],linetype=1,size=0.75)
+ms.plot<-ms.plot+geom_abline(intercept = intercepts[6,1],slope=slope,color=reg.colors[6],linetype=1,size=0.75)
+ms.plot<-ms.plot+geom_abline(intercept = intercepts[7,1],slope=slope,color=reg.colors[7],linetype=1,size=0.75)
+ms.plot<-ms.plot+geom_abline(intercept = intercepts[8,1],slope=slope,color=reg.colors[8],linetype=1,size=0.75)
+ms.plot<-ms.plot+geom_abline(intercept = intercepts[9,1],slope=slope,color=reg.colors[9],linetype=1,size=0.75)
+
+single.regimes<-c("Folivorous Spatial Polygyny","Folivorous Monogamy","Folivorous Polygynandry","Folivorous Harem Polygyny","Non-folivorous Spatial Polygyny","Non-folivorous Monogamy","Non-folivorous Polyandry","Non-folivorous Polygynandry", "Non-folivorous Harem Polygyny")
+
+
+#ms.plot<-ms.plot+labs(fill="Diet Categories+ \nMating System") #For famililes = shapes
+ms.plot<-ms.plot+
+scale_color_manual(values=reg.colors,name="Diet + Mating System",labels=single.regimes)+
+scale_shape_manual(name="Family",values=1:nlevels(factor(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Family)))
+
+
+ms.plot<-ms.plot+guides(fill = guide_legend(override.aes = list(size=5)))
+
+#Diet Categories+ \nMating System+ \nActivity Period
+#ms.plot<-ms.plot+guides(fill = guide_legend(override.aes = list(size=5)))
+ms.plot
+
+#6 X 10 Small Pdf
+#8 X 12, large PDF
+#library(plotly)
+#ggplotly()
+```
+
+
+
+

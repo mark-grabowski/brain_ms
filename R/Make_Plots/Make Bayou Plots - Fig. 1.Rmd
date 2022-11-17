@@ -1,0 +1,401 @@
+---
+title: "Bayou - Brain Size ~ Body Size"
+output: html_notebook
+editor_options: 
+  chunk_output_type: console
+---
+Setup for Bayou with Only BoM  - 03.04.2019 - after adding in new diet categories and correcting for using DC inferred evolution rather than RDC on RDC analysis
+Also updated SS, and ran everything together under the Diet %, Reduced Diet Categories separators
+
+Species Only Analysis
+```{r}
+#Clear workspace
+closeAllConnections() 
+
+#install.packages("devtools")
+#require(devtools)
+#install_github("uyedaj/bayou")
+#require(bayou)
+
+rm(list=ls())
+library(ggplot2)
+library(slouch)
+library(phytools)
+library(treeplyr)
+#install.packages("bayou")
+library(bayou)
+
+library(doParallel)
+library(treeplyr)
+
+library(viridis)
+library(patchwork)
+library(gridGraphics)
+library(tidyr)
+
+options(scipen=999)
+
+#For execution on a local, multicore CPU with excess RAM we recommend calling
+options(mc.cores = parallel::detectCores())
+
+#First, load workspace for all data:
+#load("/Users/markgrabowski/Google Drive/Shared with Mac Pro/Brain Size Diet + Social System/Bayou Brain Diet SS Rstudio Folder/Workspace/Full_Model_Setup_10K_101519.RData")
+#127 species
+#load("/Users/markgrabowski/Google Drive/Shared with Mac Pro/Brain Size Diet + Social System/SB Revision 1/WS/WS for bayou - SBR1 - 040821.RData")
+#128 Species
+#load("/Users/markgrabowski/Google Drive/Shared with Mac Pro/Brain Size Diet + Social System/SB Revision 1/WS/bayou/WS for bayou - SBR1 -128 sp 051721.RData")
+```
+
+
+
+```{r}
+load("/Users/markgrabowski/Library/CloudStorage/GoogleDrive-mark.walter.grabowski@gmail.com/My Drive/Shared with Mac Pro/Brain Size Diet + Social System/SB Revision 1/WS/bayou/WS for bayou - SBR1 -128 sp 051721.RData")
+
+```
+
+```{r}
+chain.BoM.N1.ch1<-readRDS("/Users/markgrabowski/Library/CloudStorage/GoogleDrive-mark.walter.grabowski@gmail.com/My Drive/Shared with Mac Pro/Brain Size Diet + Social System/SB Revision 1/Code/bayou Code/Output/modelBoM_N1_r001.chain.rds")
+chain.BoM.N1.ch2<-readRDS("/Users/markgrabowski/Library/CloudStorage/GoogleDrive-mark.walter.grabowski@gmail.com/My Drive/Shared with Mac Pro/Brain Size Diet + Social System/SB Revision 1/Code/bayou Code/Output/modelBoM_N1_r002.chain.rds")
+```
+
+```{r}
+chains.N1 <- combine.chains(list(chain.BoM.N1.ch1, chain.BoM.N1.ch2), burnin.prop=0.3)
+
+```
+
+
+Fig 1: Make Plots for Bayou
+```{r}
+library(ggsci)
+#########################
+par(mfrow=c(1,1))
+par(bg = 'white')
+#cols<-lib(4)
+
+reg.colors<-pal_aaas(palette=c("default"),alpha=0.8)(9)
+library(scales)
+show_col(pal_aaas("default")(9))
+
+#Posterior probabilities proportional to circle diameter:
+pdf("Simmap_mcmc.pdf", height=6, width=4)
+
+#No tip labels - main plot
+plotSimmap.mcmc(chains.N1, cex=0.2,lwd=1.0,edge.type="regimes", pp.cutoff=0.5,circle.cex.max = 4.0,label.offset=1,pal = pal_aaas(),show.tip.label=FALSE)
+axisPhylo(side=1,cex.axis=0.6,lwd=0.6)
+
+#With tip labels for SI
+plotSimmap.mcmc(chains.N1, cex=0.2,lwd=1.0,edge.type="regimes", pp.cutoff=0.5,circle.cex.max = 4.0,label.offset=1,pal = pal_aaas(),show.tip.label=TRUE)
+axisPhylo(side=1,cex.axis=0.6,lwd=0.6)
+ 
+#With edge labels
+plotSimmap.mcmc(chains.N1, cex=0.2,lwd=1.0,edge.type="regimes",pp.cutoff=0.5,circle.cex.max = 1.0,circles=FALSE,pp.labels = TRUE,pp.cex=0.25)
+edgelabels(cex=0.25,frame="none",adj=c(1,1))
+axisPhylo(side=1,cex.axis=0.6,lwd=0.6)
+
+#Fig S1
+plotBranchHeatMap(BrBo.DC.GS.SS.tree, chains.N1, variable="theta",pal=cm.colors,cex=0.2)
+
+
+
+
+dev.off()
+
+
+#4X6 -Fig 1, then cut out
+
+```
+
+Combine Theta info for intercept plot
+```{r}
+library(ggsci)
+dat<-log.ECV.dat
+pred<-log.BoM.dat
+sumstats<-summary(chains.N1)
+sumpars<-list(sb=which(sumstats$branch.posteriors$pp>0.5))
+sumpars$k<-length(sumpars$sb)
+sumpars$ntheta<-length(sumpars$sb)+1
+sumpars$loc<-rep(0,sumpars$k)
+sumpars$t2<-2:sumpars$ntheta
+sb<-sumpars$sb
+cache <- bayou:::.prepare.ou.univariate(BrBo.DC.GS.SS.tree,dat, SE=0, pred)
+tipregs <- bayou:::.tipregime(sumpars, BrBo.DC.GS.SS.tree)
+tr <- pars2simmap(sumpars, BrBo.DC.GS.SS.tree)
+descendents <- lapply(1:(length(sumpars$sb)+1), function(x) names(tipregs[tipregs==x])) 
+
+#betas<-do.call(rbind,chains.N1$beta_log.BoM.dat)
+betas<-chains.N1$beta_log.BoM.dat
+thetas<-do.call(rbind.data.frame,chains.N1$theta)
+#thetas<-chains.N1$theta
+thetas<-data.frame(thetas)
+
+
+ids<-which(sapply(descendents,length)>3)
+cladenames <- c("Root (28)", "Haplorhines (99)", "Callitrichidae (11)")
+names(thetas)<-cladenames
+
+thetas <- thetas[,ids]
+ldesc <- sapply(ids, function(x) length(descendents[[x]]))
+cols<-pal_aaas(palette=c("default"),alpha=0.8)(3)
+#cols <- setNames(pal_aaas(length(sb)+1), c(1, sample(2:(length(sb)+1), length(sb), replace=FALSE)))
+#cols <- cols[order(as.numeric(names(cols)))]
+
+```
+
+Bjorn's Code - working
+```{r}
+level_order <- c("Root (28)", "Haplorhines (99)", "Callitrichidae (11)")
+#ggplot(iris, aes(x = factor(Species, level = level_order), y = Petal.Width)) + geom_col()
+
+#remove 2.5/97.5 quantiles code
+#quantiles <- c(0.025, 0.975)
+#saved.quantiles<-apply(thetas,2,function(x){quantile(x,quantiles)})
+#thetas[,1]
+
+
+df_longformat <- 
+  pivot_longer(thetas,
+               col = everything(),
+               names_to = "optima")
+
+violin_plot <- df_longformat %>%
+  ggplot(aes(x = factor(optima,level=level_order), y = value, fill = optima)) +
+  geom_violin(draw_quantiles = c(0.975, 0.5, 0.025), alpha = 0.8,bw=0.25) +
+  geom_boxplot(width=0.05,color="black",outlier.shape = NA)+
+  stat_summary(fun=median, geom="point", shape=20, size=7, color="black", fill="black") +
+  theme_classic() +
+  ylab("Optimum\n(Endocranial volume, cc)") +
+  theme(axis.title.x = element_blank(),
+        legend.position = "none",
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        axis.text=element_text(size=14),
+        axis.title.y = element_text(size=14),
+      
+
+panel.grid.major = element_line("gray95"),
+panel.grid.minor = element_line("gray95"),
+panel.background = element_blank(),
+panel.border = element_rect(colour = "black", fill=NA, size=0.5),
+plot.title = element_text(size=16)
+#,legend.position="none"
+)
+
+par(mar = c(0.1, 0.1, 0.1, 0.1), mgp = c(1, 0.25, 0), 
+               bg = NA, cex.axis = 0.75, las = 1, tcl = -0.25)
+
+meanx <- 8.09
+slope <- 0.554 ## I dont know what hte slope is for this model, check it
+scaleFUN <- function(x) sprintf("%.0f", round(exp(x + slope * meanx), 0))
+breaks <- log(c(1,10, 100, 1000, 10000)) - slope * meanx
+
+p2 <- violin_plot + 
+  scale_y_continuous(labels = scaleFUN)+scale_fill_manual(values=cols[c(3,2,1)])
+
+p2
+```
+
+
+```{r}
+#####
+require(vioplot)
+
+par(mfrow=c(1,1), lwd=2)
+par(mar=c(6, 5, 1, 1))
+plot(0,0, type="n", xlab="", ylab="Intercept", xlim=c(0,4), ylim=c(-5,4.5), xaxt="n", cex.lab=1.25, yaxt="n")
+abline(h=seq(-5,4.5,1), col="gray75",lty=3)
+
+#axis(1, at=1:3, paste(cladenames, " (", ldesc,")", sep=""), las=2, cex=1.5)
+
+axis(side=1, labels=FALSE)
+
+text(x = 1:length(cladenames),
+     y = par("usr")[3] - 0.45,
+     labels = paste(cladenames, " (", ldesc,")", sep=""),
+     xpd = NA,
+     adj=1.1,
+     ## Rotate the labels by 35 degrees.
+     srt = 45,
+     cex = 1)
+
+axis(2, at=seq(-6,6,2), cex=1.25)
+#abline(h=seq(-6,5,1), col="gray50")
+lapply(1:length(ids), function(x) vioplot(thetas[,x], at=x, add=TRUE, col=cols[ids[x]], border="black"))
+box()
+
+#####
+```
+
+
+Combine Theta info for intercept plot
+```{r}
+library(ggsci)
+dat<-log.ECV.dat
+pred<-log.BoM.dat
+sumstats<-summary(chains.N1)
+sumpars<-list(sb=which(sumstats$branch.posteriors$pp>0.5))
+sumpars$k<-length(sumpars$sb)
+sumpars$ntheta<-length(sumpars$sb)+1
+sumpars$loc<-rep(0,sumpars$k)
+sumpars$t2<-2:sumpars$ntheta
+sb<-sumpars$sb
+cache <- bayou:::.prepare.ou.univariate(BrBo.DC.GS.SS.tree,dat, SE=0, pred)
+tipregs <- bayou:::.tipregime(sumpars, BrBo.DC.GS.SS.tree)
+tr <- pars2simmap(sumpars, BrBo.DC.GS.SS.tree)
+descendents <- lapply(1:(length(sumpars$sb)+1), function(x) names(tipregs[tipregs==x])) 
+
+#betas<-do.call(rbind,chains.N1$beta_log.BoM.dat)
+betas<-chains.N1$beta_log.BoM.dat
+thetas<-do.call(rbind.data.frame,chains.N1$theta)
+#thetas<-chains.N1$theta
+thetas<-data.frame(thetas)
+
+
+ids<-which(sapply(descendents,length)>3)
+cladenames <- c("Root", "Haplorhines", "Callitrichidae")
+names(thetas)<-cladenames
+
+thetas <- thetas[,ids]
+ldesc <- sapply(ids, function(x) length(descendents[[x]]))
+cols<-pal_aaas(palette=c("default"),alpha=0.8)(3)
+#cols <- setNames(pal_aaas(length(sb)+1), c(1, sample(2:(length(sb)+1), length(sb), replace=FALSE)))
+#cols <- cols[order(as.numeric(names(cols)))]
+
+```
+
+
+
+
+Rescaled to global mean body mass
+Exponentated axis?
+```{r}
+root.theta<--1.278755650
+call.theta<--1.8158816
+haps.theta<-0.3655701
+slope<-0.554489766
+mean.ECV<-mean(log.ECV.dat)
+mean.BoM<-mean(log.BoM.dat)
+
+thetas.starred<-thetas
+thetas.starred<-thetas+slope*8.085059
+thetas.starred<-as.data.frame(thetas.starred)
+
+#####
+```
+
+```{r}
+require(vioplot)
+
+par(mfrow=c(1,1), lwd=2)
+par(mar=c(6, 5, 1, 1))
+plot(0,0, type="n", xlab="", ylab="Optimum (Enocranial Volume in cc)", xlim=c(0,4), ylim=c(-1000,1000), xaxt="n", cex.lab=1.25, yaxt="n")
+#abline(h=seq(-5,4.5,1), col="gray75",lty=3)
+
+#axis(1, at=1:3, paste(cladenames, " (", ldesc,")", sep=""), las=2, cex=1.5)
+
+axis(side=1, labels=FALSE)
+
+text(x = 1:length(cladenames),
+     y = par("usr")[3] - 0.45,
+     labels = paste(cladenames, " (", ldesc,")", sep=""),
+     xpd = NA,
+     adj=1.1,
+     ## Rotate the labels by 35 degrees.
+     srt = 45,
+     cex = 1)
+
+axis(2, at=seq(-1000,1000,100), cex=1.25)
+#abline(h=seq(-6,5,1), col="gray50")
+lapply(1:length(ids), function(x) vioplot(round(exp(thetas.starred[,x])), at=x, add=TRUE, col=cols[ids[x]], border="black"))
+box()
+
+#####
+```
+
+
+
+
+```{r}
+plotSimmap(tr$tree, colors=cols, ftype="off", mar=c(0.1,0.1,0.1,0.1))
+require(vioplot)
+plot(0,0, type="n", xlab="", ylab="Optima", xlim=c(0,4), ylim=c(-5,5), xaxt="n", cex.lab=1.25, yaxt="n")
+abline(h=seq(-5,5,1), col="gray50",lty=2)
+axis(1, at=1:3, paste(cladenames, " (", ldesc,")", sep=""), las=2, cex=1.5)
+axis(side=1, labels=FALSE)
+text(x = 1:length(cladenames),
+     y = par("usr")[3] - 0.45,
+     labels = names(paste(cladenames, " (", ldesc,")", sep="")),
+     xpd = NA,
+     ## Rotate the labels by 35 degrees.
+     srt = 45,
+     cex = 1.25)
+text(seq(1, 3, by=1), par("usr")[3] - 0.2, labels = lablist, srt = 45, pos = 1, xpd = TRUE)
+axis(2,  cex=1.25)
+#abline(h=c(2/3, 0.75), lty=2, lwd=3)
+lapply(1:length(ids), function(x) vioplot(thetas[,x], at=x, add=TRUE, col=cols[ids[x]], cex=2))
+box()
+
+
+```
+
+GGplot
+```{r}
+library(ggsci)
+library(ggplot2)
+library(reshape2)
+sumstats<-summary(chains.N1)
+sumpars<-list(sb=which(sumstats$branch.posteriors$pp>0.5))
+sumpars$k<-length(sumpars$sb)
+sumpars$ntheta<-length(sumpars$sb)+1
+sumpars$loc<-rep(0,sumpars$k)
+sumpars$t2<-2:sumpars$ntheta
+sb<-sumpars$sb
+tipregs <- bayou:::.tipregime(sumpars, BrBo.DC.GS.SS.tree)
+tr <- pars2simmap(sumpars, BrBo.DC.GS.SS.tree)
+descendents <- lapply(1:(length(sumpars$sb)+1), function(x) names(tipregs[tipregs==x])) 
+
+thetas<-do.call(rbind,chains.N1$theta)
+thetas<-data.frame(thetas)
+ids<-which(sapply(descendents,length)>3)
+cladenames <- c("Root", "Haplorhines", "Callitrichidae")
+names(thetas)<-cladenames
+
+thetas <- thetas[,ids]
+ldesc <- sapply(ids, function(x) length(descendents[[x]]))
+ldesc<-ldesc[c(1,3,2)]
+cols<-pal_aaas(palette=c("default"),alpha=0.8)(3)
+
+thetas<-melt(thetas)
+head(thetas)
+
+```
+
+```{r}
+
+addline_format <- function(x,...){
+    gsub('\\s','\n',x)
+}
+
+##############
+v.plot<-ggplot(thetas.starred,aes(x=variable,y=round(exp(value)),fill=variable))+geom_violin()
+#v.plot<- v.plot + stat_summary(fun=median, geom="point", size=2, color="black")
+v.plot<-v.plot+ geom_boxplot(width=0.05,color="black",outlier.shape = NA)
+#v.plot<-v.plot+ geom_pointrange(mapping = aes(x = variable, y = value), stat = "summary" ,fun.y = "median",geom="point")
+v.plot<-v.plot+stat_summary(fun.y="median",geom="point")
+v.plot<-v.plot+scale_fill_manual(values=cols)
+v.plot<-v.plot+theme(axis.text=element_text(size=12),axis.title=element_text(size=14),axis.text.x = element_text(angle = 0,vjust=1,hjust=0.5,size=12),
+
+# Remove panel grid lines
+panel.grid.major = element_line("gray95"),
+panel.grid.minor = element_line("gray95"),
+panel.background = element_blank(),
+panel.border = element_rect(colour = "black", fill=NA, size=0.5),
+plot.title = element_text(size=16),
+,legend.position="none"
+)
+v.plot<-v.plot+scale_x_discrete(name ="Clade",labels=addline_format(c(paste(cladenames, " (", ldesc,")", sep=""))))
+v.plot<-v.plot + labs(y="Optima (Endocranial Volume - g)")
+v.plot
+
+
+
+```
+

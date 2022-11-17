@@ -1,0 +1,474 @@
+---
+title: "R2 BDS ms SIMMAP Plots Code 091222"
+output: html_notebook
+editor_options: 
+  chunk_output_type: console
+---
+
+All Primates Analysis
+
+Run: SIMMAPS 062522 v1
+	Testing revised data from R2 but running original fitMk program, not parallel
+	Gorilla g in strict classification is folivore
+	Predictors:
+		Fol.Non.Fol.Strict
+		Fol.Non.Fol.Per
+		Frug.Non.Frug.Per
+		Social.System.DRclass
+		Social.System.DGT
+		Mating.System
+		Activity.Period.DN
+		GSC >50
+
+
+```{r}
+rm(list=ls())
+library(ggplot2)
+library(phytools)
+library(ggsci)
+library(bayou)
+library(ggridges)
+library(forcats)
+library(dplyr)
+#Get rid of return before making plots
+devAskNewPage(ask = FALSE)
+
+source("/Users/markgrabowski/Library/CloudStorage/GoogleDrive-mark.walter.grabowski@gmail.com/My Drive/Shared with Mac Pro/Brain Size Diet + Social System/SB Revision 1/Programs/plotRegimesMod.R")
+
+source("/Users/markgrabowski/Library/CloudStorage/GoogleDrive-mark.walter.grabowski@gmail.com/My Drive/Shared with Mac Pro/Brain Size Diet + Social System/SB Revision 1/Programs/make.AICc.R2.dist.R")
+
+```
+
+Load All Primates Simmap WS
+```{r}
+#load("/Users/markgrabowski/Google Drive/Shared with Mac Pro/Brain Size Diet + Social System/SB Revision 1/WS/Scaled/WS from SIMMAP - All Primates - Scaled 042621.RData")
+
+#load("/Users/markgrabowski/Google Drive/Shared with Mac Pro/Brain Size Diet + Social System/SB Revision 1/WS/WS from SIMMAP - All Primates - Scaled 051021.RData")
+
+#load("/Users/markgrabowski/Google Drive/Shared with Mac Pro/Brain Size Diet + Social System/SB Revision 1/WS/WS from SIMMAP - Streps - Scaled 051321.RData")
+
+#load("/Users/markgrabowski/Google Drive/Shared with Mac Pro/Brain Size Diet + Social System/SB Revision 1/WS/WS from SIMMAP - Haps - Scaled 051321.RData")
+
+#load("/Users/markgrabowski/Google Drive/Shared with Mac Pro/Brain Size Diet + Social System/SB Revision 1/WS/WS from SIMMAP - Platys - Scaled 051321.RData")
+
+###########################
+#128 Species 
+#load("/Users/markgrabowski/Google Drive/Shared with Mac Pro/Brain Size Diet + Social System/SB Revision 1/WS/WS from SIMMAP - All Primates - 128 sp - Scaled 051621.RData")
+
+
+#load("/Users/markgrabowski/Google Drive/Shared with Mac Pro/Brain Size Diet + Social System/SB Revision 1/WS/128 sp/WS from SIMMAP - All Primates - 128 sp - Scaled 051621.RData")
+
+#load("/Users/markgrabowski/Documents/Academic/Research/Current Projects/Brain Size Diet + Social System/SB Revision 2/Results/SIMMAPS 062122 v1/SIMMAPS/WS from SIMMAP - All Primates - Scaled 062122.RData")
+
+#load("/Users/markgrabowski/Documents/Academic/Research/Current Projects/Brain Size Diet + Social System/SB Revision 2/Results/SIMMAPS 062522 v1/SIMMAPS/WS from SIMMAP - All Primates - Scaled 062522.RData")
+
+load("/Users/markgrabowski/Documents/Academic/Research/Current Projects/Brain Size Diet + Social System/SB Revision 2/Results/SIMMAPS 062522 v1/SIMMAPS/All Primates/WS from SIMMAP - All Primates - Scaled 062522.RData")
+
+```
+
+Plot simmap: reconstruction.FoDC.ms -Folivore diet categories + Mating System
+```{r}
+#library(viridis)
+#cols <- viridis(length(levels(as.factor(states))))
+
+#############
+states<-unique(as.vector(paste(BrBo.Diet.DC.GS.SS.trdata$dat$Fol.Non.Fol ,BrBo.Diet.DC.GS.SS.trdata$dat$Mating.System)))
+cols<-pal_aaas(palette = c("default"),alpha=1.0)(length(states))
+names(cols)<-levels(as.factor(states))
+
+ltys<-rep(NA,length(levels(as.factor(states))))
+names(ltys)<-levels(as.factor(states))
+ltys[grepl("Non", names(ltys), fixed = TRUE)==TRUE]<-1
+ltys[grepl("Non", names(ltys), fixed = TRUE)==FALSE]<-6
+
+#Modified bayou plotRegime function - added in line type code
+plotRegimesMod(reconstruction.FoDC.ms[[1]],col=cols, lwd = 1.75, lty = ltys,cex = 0.15)
+#6X4 pdf
+####
+
+
+```
+
+Make SIMMAP Pie Plot
+```{r}
+test.summary<-describe.simmap(reconstruction.FoDC.ms,plot=FALSE)
+
+plot(test.summary,colors=cols,fsize=0.25,ftype="i",cex=0.6, lty=ltys)
+add.simmap.legend(colors=cols,prompt=FALSE,x=0,y=40,vertical=TRUE,fsize=0.75)
+#6X4
+
+#Individual run
+#plotSimmap(reconstruction.FoDC.ms[[1]],colors=cols,fsize=0.25,ftype="i")
+#add.simmap.legend(colors=cols,prompt=FALSE,x=0,y=35,vertical=TRUE)
+
+
+
+```
+
+Plot simmap: reconstruction.FoDC.ms - Mating System
+```{r}
+#library(viridis)
+#cols <- viridis(length(levels(as.factor(states))))
+
+#############
+states<-unique(as.vector(BrBo.Diet.DC.GS.SS.trdata$dat$Mating.System))
+cols<-pal_aaas(palette = c("default"),alpha=1.0)(length(states))
+names(cols)<-levels(as.factor(states))
+
+
+ltys<-rep(NA,length(levels(as.factor(states))))
+names(ltys)<-levels(as.factor(states))
+ltys[]<-1
+
+#Modified bayou plotRegime function - added in line type code
+plotRegimesMod(reconstruction.ms[[2]],col=cols, lwd = 1.75, lty = ltys,cex = 0.15)
+#6X4 pdf
+####
+
+
+```
+
+Make SIMMAP Pie Plot
+```{r}
+test.summary<-describe.simmap(reconstruction.ms,plot=FALSE)
+
+plot(test.summary,colors=cols,fsize=0.25,ftype="i",cex=0.6, lty=ltys)
+add.simmap.legend(colors=cols,prompt=FALSE,x=0,y=40,vertical=TRUE,fsize=0.75)
+#6X4
+
+#Individual run
+plotSimmap(reconstruction.FoDC.ms[[1]],colors=cols,fsize=0.25,ftype="i")
+add.simmap.legend(colors=cols,prompt=FALSE,x=0,y=35,vertical=TRUE)
+
+
+
+```
+
+
+
+
+Summarize SIMMAP AICc distributions 
+Setup
+```{r}
+test<-make.AICc.R2.dist(saved.slouch.output.list,loops.num*sim.num)
+
+#Take out groupm size^2 rows
+test<-test[!grepl("Group Size2", test$Predictor),]
+test<-mutate(test,Model=NA)
+test[grepl("OU.", test$`Model Type`),"Model"]<-"OU"
+test[grepl(".BM", test$`Model Type`),"Model"]<-"BM"
+test<-mutate(test,Merged=paste(Predictor,Model))
+```
+
+
+
+```{r}
+ms.plot<-ggplot(test, aes(x = AICc, y = Merged)) + geom_density_ridges()+labs(title="SIMMAP - All Primate Results")
+
+ms.plot<-ms.plot+aes(y=fct_inorder(Merged))
+ms.plot<-ms.plot+theme(axis.text=element_text(size=8),axis.title=element_text(size=12),legend.title=element_text(size=8),legend.text=element_text(size=6),
+
+# Remove panel border
+#panel.border = element_line("black"),
+# Remove panel grid lines
+panel.grid.major = element_line("gray95"),
+panel.grid.minor = element_line("gray95"),
+panel.background = element_blank(),
+
+panel.border = element_rect(colour = "black", fill=NA, size=0.5),
+plot.title = element_text(size=16))
+ms.plot<-ms.plot+scale_y_discrete(limits=rev)
+ms.plot<-ms.plot+labs(y="Predictor/Model Type")
+
+ms.plot
+#16X12
+```
+
+
+
+
+```{r}
+test.1st<-dim(test)[1]/2
+test.first<-test[1:test.1st,]
+test.second<-test[test.1st+1:dim(test)[1],]
+
+```
+
+
+```{r}
+ms.plot<-ggplot(test.first, aes(x = AICc, y = Merged)) + geom_density_ridges()+labs(title="SIMMAP - All Primate Results")
+
+ms.plot<-ms.plot+aes(y=fct_inorder(Merged))
+ms.plot<-ms.plot+theme(axis.text=element_text(size=8),axis.title=element_text(size=12),legend.title=element_text(size=8),legend.text=element_text(size=8),
+
+# Remove panel border
+#panel.border = element_line("black"),
+# Remove panel grid lines
+panel.grid.major = element_line("gray95"),
+panel.grid.minor = element_line("gray95"),
+panel.background = element_blank(),
+
+panel.border = element_rect(colour = "black", fill=NA, size=0.5),
+plot.title = element_text(size=16))
+ms.plot<-ms.plot+scale_y_discrete(limits=rev)
+ms.plot<-ms.plot+labs(y="Predictor/Model Type")
+
+ms.plot
+#16X12
+
+```
+
+
+```{r}
+ms.plot<-ggplot(test.second, aes(x = AICc, y = Merged)) + geom_density_ridges()+labs(title="SIMMAP - All Primate Results")
+
+ms.plot<-ms.plot+aes(y=fct_inorder(Merged))
+ms.plot<-ms.plot+theme(axis.text=element_text(size=8),axis.title=element_text(size=12),legend.title=element_text(size=8),legend.text=element_text(size=8),
+
+# Remove panel border
+#panel.border = element_line("black"),
+# Remove panel grid lines
+panel.grid.major = element_line("gray95"),
+panel.grid.minor = element_line("gray95"),
+panel.background = element_blank(),
+
+panel.border = element_rect(colour = "black", fill=NA, size=0.5),
+plot.title = element_text(size=16))
+ms.plot<-ms.plot+scale_y_discrete(limits=rev)
+ms.plot<-ms.plot+labs(y="Predictor/Model Type")
+
+ms.plot
+#16X12
+
+```
+
+
+
+Based on individual SIMMAP maps for groups, not subsets of all primates SIMMAP
+############
+Haplorrhines
+```{r}
+#128 Species 
+load("/Users/markgrabowski/Documents/Academic/Research/Current Projects/Brain Size Diet + Social System/SB Revision 2/Results/SIMMAPS 062522 v1/SIMMAPS/Haplorhines/Version 2/WS from SIMMAP - Haplorrhines - Scaled 062722.RData")
+```
+
+
+Summarize SIMMAP AICc distributions 
+Setup
+```{r}
+test<-make.AICc.R2.dist(saved.slouch.output.list,loops.num*sim.num)
+
+#Take out groupm size^2 rows
+test<-test[!grepl("Group Size2", test$Predictor),]
+test<-mutate(test,Model=NA)
+test[grepl("OU.", test$`Model Type`),"Model"]<-"OU"
+test[grepl(".BM", test$`Model Type`),"Model"]<-"BM"
+test<-mutate(test,Merged=paste(Predictor,Model))
+```
+
+SI Fig 1 and 2
+```{r}
+test.1st<-dim(test)[1]/2
+test.first<-test[1:test.1st,]
+test.second<-test[test.1st+1:dim(test)[1],]
+
+```
+
+
+```{r}
+ms.plot<-ggplot(test.first, aes(x = AICc, y = Merged)) + geom_density_ridges()+labs(title="SIMMAP - Haplorrhines")
+
+ms.plot<-ms.plot+aes(y=fct_inorder(Merged))
+ms.plot<-ms.plot+theme(axis.text=element_text(size=12),axis.title=element_text(size=12),legend.title=element_text(size=8),legend.text=element_text(size=8),
+
+# Remove panel border
+#panel.border = element_line("black"),
+# Remove panel grid lines
+panel.grid.major = element_line("gray95"),
+panel.grid.minor = element_line("gray95"),
+panel.background = element_blank(),
+
+panel.border = element_rect(colour = "black", fill=NA, size=0.5),
+plot.title = element_text(size=16))
+ms.plot<-ms.plot+scale_y_discrete(limits=rev)
+ms.plot<-ms.plot+labs(y="Predictor/Model Type")
+
+ms.plot
+```
+
+
+```{r}
+ms.plot<-ggplot(test.second, aes(x = AICc, y = Merged)) + geom_density_ridges()+labs(title="SIMMAP - Haplorrhines")
+
+ms.plot<-ms.plot+aes(y=fct_inorder(Merged))
+ms.plot<-ms.plot+theme(axis.text=element_text(size=12),axis.title=element_text(size=12),legend.title=element_text(size=8),legend.text=element_text(size=8),
+
+# Remove panel border
+#panel.border = element_line("black"),
+# Remove panel grid lines
+panel.grid.major = element_line("gray95"),
+panel.grid.minor = element_line("gray95"),
+panel.background = element_blank(),
+
+panel.border = element_rect(colour = "black", fill=NA, size=0.5),
+plot.title = element_text(size=16))
+ms.plot<-ms.plot+scale_y_discrete(limits=rev)
+ms.plot<-ms.plot+labs(y="Predictor/Model Type")
+
+ms.plot
+```
+
+
+############
+Strepsirrhines
+```{r}
+load("/Users/markgrabowski/Documents/Academic/Research/Current Projects/Brain Size Diet + Social System/SB Revision 2/Results/SIMMAPS 062522 v1/SIMMAPS/Strepsirrhines/WS from SIMMAP - Strepsirrhines - Scaled 062722.RData")
+```
+
+
+Summarize SIMMAP AICc distributions 
+Setup
+```{r}
+test<-make.AICc.R2.dist(saved.slouch.output.list,loops.num*sim.num)
+
+#Take out groupm size^2 rows
+test<-test[!grepl("Group Size2", test$Predictor),]
+test<-mutate(test,Model=NA)
+test[grepl("OU.", test$`Model Type`),"Model"]<-"OU"
+test[grepl("BM", test$`Model Type`),"Model"]<-"BM"
+test<-mutate(test,Merged=paste(Predictor,Model))
+```
+
+
+
+
+
+```{r}
+test.1st<-dim(test)[1]/2
+test.first<-test[1:test.1st,]
+test.second<-test[test.1st+1:dim(test)[1],]
+
+```
+
+
+```{r}
+ms.plot<-ggplot(test.first, aes(x = AICc, y = Merged)) + geom_density_ridges()+labs(title="SIMMAP - Strepsirrhines")
+
+ms.plot<-ms.plot+aes(y=fct_inorder(Merged))
+ms.plot<-ms.plot+theme(axis.text=element_text(size=8),axis.title=element_text(size=12),legend.title=element_text(size=8),legend.text=element_text(size=8),
+
+# Remove panel border
+#panel.border = element_line("black"),
+# Remove panel grid lines
+panel.grid.major = element_line("gray95"),
+panel.grid.minor = element_line("gray95"),
+panel.background = element_blank(),
+
+panel.border = element_rect(colour = "black", fill=NA, size=0.5),
+plot.title = element_text(size=16))
+ms.plot<-ms.plot+scale_y_discrete(limits=rev)
+ms.plot<-ms.plot+labs(y="Predictor/Model Type")
+
+ms.plot
+```
+
+
+```{r}
+ms.plot<-ggplot(test.second, aes(x = AICc, y = Merged)) + geom_density_ridges()+labs(title="SIMMAP - Strepsirrhines")
+
+ms.plot<-ms.plot+aes(y=fct_inorder(Merged))
+ms.plot<-ms.plot+theme(axis.text=element_text(size=8),axis.title=element_text(size=12),legend.title=element_text(size=8),legend.text=element_text(size=8),
+
+# Remove panel border
+#panel.border = element_line("black"),
+# Remove panel grid lines
+panel.grid.major = element_line("gray95"),
+panel.grid.minor = element_line("gray95"),
+panel.background = element_blank(),
+
+panel.border = element_rect(colour = "black", fill=NA, size=0.5),
+plot.title = element_text(size=16))
+ms.plot<-ms.plot+scale_y_discrete(limits=rev)
+ms.plot<-ms.plot+labs(y="Predictor/Model Type")
+
+ms.plot
+```
+
+
+#######
+Platyrrhines
+```{r}
+#128 Species 
+load("/Users/markgrabowski/Documents/Academic/Research/Current Projects/Brain Size Diet + Social System/SB Revision 2/Results/SIMMAPS 062522 v1/SIMMAPS/Platyrrhines/Version 2/WS from SIMMAP - Platyrrhines - Scaled 062722.RData")
+```
+Summarize SIMMAP AICc distributions 
+Setup
+```{r}
+test<-make.AICc.R2.dist(saved.slouch.output.list,loops.num*sim.num)
+
+#Take out groupm size^2 rows
+test<-test[!grepl("Group Size2", test$Predictor),]
+test<-mutate(test,Model=NA)
+test[grepl("OU.", test$`Model Type`),"Model"]<-"OU"
+test[grepl("BM", test$`Model Type`),"Model"]<-"BM"
+test<-mutate(test,Merged=paste(Predictor,Model))
+```
+
+
+
+
+
+```{r}
+test.1st<-dim(test)[1]/2
+test.first<-test[1:test.1st,]
+test.second<-test[test.1st+1:dim(test)[1],]
+
+```
+
+
+```{r}
+ms.plot<-ggplot(test.first, aes(x = AICc, y = Merged)) + geom_density_ridges()+labs(title="SIMMAP - Platyrrhines")
+
+ms.plot<-ms.plot+aes(y=fct_inorder(Merged))
+ms.plot<-ms.plot+theme(axis.text=element_text(size=12),axis.title=element_text(size=12),legend.title=element_text(size=8),legend.text=element_text(size=8),
+
+# Remove panel border
+#panel.border = element_line("black"),
+# Remove panel grid lines
+panel.grid.major = element_line("gray95"),
+panel.grid.minor = element_line("gray95"),
+panel.background = element_blank(),
+
+panel.border = element_rect(colour = "black", fill=NA, size=0.5),
+plot.title = element_text(size=16))
+ms.plot<-ms.plot+scale_y_discrete(limits=rev)
+ms.plot<-ms.plot+labs(y="Predictor/Model Type")
+
+ms.plot
+```
+
+
+```{r}
+ms.plot<-ggplot(test.second, aes(x = AICc, y = Merged)) + geom_density_ridges()+labs(title="SIMMAP - Platyrrhines")
+
+ms.plot<-ms.plot+aes(y=fct_inorder(Merged))
+ms.plot<-ms.plot+theme(axis.text=element_text(size=12),axis.title=element_text(size=12),legend.title=element_text(size=8),legend.text=element_text(size=8),
+
+# Remove panel border
+#panel.border = element_line("black"),
+# Remove panel grid lines
+panel.grid.major = element_line("gray95"),
+panel.grid.minor = element_line("gray95"),
+panel.background = element_blank(),
+
+panel.border = element_rect(colour = "black", fill=NA, size=0.5),
+plot.title = element_text(size=16))
+ms.plot<-ms.plot+scale_y_discrete(limits=rev)
+ms.plot<-ms.plot+labs(y="Predictor/Model Type")
+
+ms.plot
+```
+
+
+
+
