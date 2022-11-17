@@ -1,0 +1,505 @@
+---
+title: "Grabowski et al. - SBR2 - Bayou Analysis - log Brain Size ~ log Body Size"
+output: html_notebook
+editor_options: 
+  chunk_output_type: console
+---
+Setup for Bayou with Only log BoM as a predictor
+From: Bayou - SBR2 - All Species 042722.Rmd
+
+Species Only Analysis
+```{r}
+#Clear workspace
+closeAllConnections() 
+rm(list=ls())
+
+library(slouch)
+library(phytools)
+library(treeplyr)
+library(bayou)
+
+library(doParallel)
+library(treeplyr)
+
+options(scipen=999)
+
+#For execution on a local, multicore CPU with excess RAM we recommend calling
+options(mc.cores = parallel::detectCores())
+
+#First, load workspace for all data:
+#load("/Users/markgrabowski/Google Drive/Shared with Mac Pro/Brain Size Diet + Social System/SB Revision 1/WS/WS for bayou - SBR1 - 040821.RData") #128 Species
+```
+
+Priors for bayou parameters
+```{r}
+
+
+param.alpha<-list(meanlog=log(0.05),sdlog=2)
+param.sig2 <- list(scale=0.1)
+
+param.beta_log.BoM.dat <- list(mean=0.6, sd=0.1)
+param.k <- list(lambda=0.05*ntips, kmax=0.15*ntips)
+param.sb=list(bmax=1, prob=1)
+param.theta=list(mean=0, sd=1)
+
+```
+
+Placing priors on intercept and slope models using log normal distribution on alpha
+```{r}
+prior.BoM.11 <- make.prior(BrBo.DC.GS.SS.AP.tree, plot.prior = FALSE, 
+                       dists=list(dalpha="dlnorm", dsig2="dhalfcauchy", dbeta_log.BoM.dat="dnorm",
+                                  dsb="fixed", dk="fixed", dtheta="dnorm"), 
+                       param=list(dalpha=param.alpha, dsig2=param.sig2,
+                                  dbeta_log.BoM.dat=param.beta_log.BoM.dat,
+                                  dtheta=param.theta),
+                      #slopechange = "alphaWeighted", 
+                       fixed=list(k=0, sb=numeric(0))
+)
+
+#No Shifts Allowed Prior
+prior.BoM.N1.NS <- make.prior(BrBo.DC.GS.SS.AP.tree, plot.prior = FALSE, 
+                       dists=list(dalpha="dlnorm", dsig2="dhalfcauchy", dbeta_log.BoM.dat="dnorm",
+                                  dsb="fixed", dk="fixed", dtheta="dnorm"), 
+                                  param=list(dalpha=param.alpha, dsig2=param.sig2,
+                                  dbeta_log.BoM.dat=param.beta_log.BoM.dat,
+                                  dtheta=param.theta),
+                                  fixed=list(k=0, sb=numeric(0), loc=numeric(0), t2=numeric(0))
+
+)
+
+
+prior.BoM.N1 <- make.prior(BrBo.DC.GS.SS.AP.tree, plot.prior = FALSE, 
+                       dists=list(dalpha="dlnorm", dsig2="dhalfcauchy", dbeta_log.BoM.dat="dnorm",
+                                  dsb="dsb", dk="cdpois", dtheta="dnorm"), 
+                                  param=list(dalpha=param.alpha, dsig2=param.sig2,
+                                  dbeta_log.BoM.dat=param.beta_log.BoM.dat,
+                                  dk=param.k,
+                                  #dsb=list(bmax=terminal.branches, prob=1),
+                                  dtheta=param.theta)
+)
+
+#No Shifts allowed Prior
+prior.BoM.NN.NS <- make.prior(BrBo.DC.GS.SS.AP.tree, plot.prior = FALSE, 
+                       dists=list(dalpha="dlnorm", dsig2="dhalfcauchy", dbeta_log.BoM.dat="dnorm",
+                                  dsb="fixed", dk="fixed", dtheta="dnorm"), 
+                                  param=list(dalpha=param.alpha, dsig2=param.sig2,
+                                  dbeta_log.BoM.dat=param.beta_log.BoM.dat,
+                                  dtheta=param.theta),
+                                  fixed=list(k=0, sb=numeric(0), loc=numeric(0), t2=numeric(0))
+
+)
+
+prior.BoM.NN <- make.prior(BrBo.DC.GS.SS.AP.tree, plot.prior = FALSE, 
+                       dists=list(dalpha="dlnorm", dsig2="dhalfcauchy", dbeta_log.BoM.dat="dnorm",
+                                  dsb="dsb", dk="cdpois", dtheta="dnorm"), 
+                                  param=list(dalpha=param.alpha, dsig2=param.sig2,
+                                  dbeta_log.BoM.dat=param.beta_log.BoM.dat,
+                                  dk=param.k,
+                                  #dsb=list(bmax=terminal.branches, prob=1),
+                                  dtheta=param.theta)
+)
+```
+
+Manually set tuning parameters, and make the models. 
+```{r}
+#log Normal dist on alpha - param.theta=list(mean=0, sd=1)
+
+#SB R1 Runs - 128 sp
+#BoM.D11 = list(alpha=8.0, sig2=1.5, beta_log.BoM.dat=0.2,k=0.5, theta=1.5, slide=1) #Checked 040821
+#BoM.DN1 = list(alpha=3.50, sig2=1.8, beta_log.BoM.dat=0.15,k=0.5, theta=8.9, slide=1) #Checked 040821
+#BoM.DNN = list(alpha=6.3, sig2=1.4, beta_log.BoM.dat=0.20,k=c(1,1), theta=6.1, slide=1) #Edited 040821
+
+#SB R2 Runs - 128 sp
+#BoM.D11 = list(alpha=14.0, sig2=1.5, beta_log.BoM.dat=0.2,k=0.5, theta=1.6, slide=1) #Checked 042422
+#BoM.DN1 = list(alpha=14, sig2=1.8, beta_log.BoM.dat=0.15,k=0.5, theta=2, slide=1) #Checked 042422
+#BoM.DNN = list(alpha=15, sig2=1.4, beta_log.BoM.dat=0.20,k=c(1,1), theta=2, slide=1) #Edited 042422
+
+
+
+
+```
+
+Make bayou models 
+```{r}
+#########0###
+
+#Model with BoM as Predictor, Fixed Intercept, Fixed Slope
+model.BoM.11 <- makeBayouModel(log.ECV.dat ~ log.BoM.dat, rjpars = c(), 
+                           tree=BrBo.DC.GS.SS.AP.tree, dat=log.ECV.dat, pred=log.BoM.dat,
+                           SE=sqrt(me.ECV.species), prior=prior.BoM.11, D=BoM.D11)
+
+
+#NO SHIFTS - Model with BoM as Predictor, Random Intercept, Fixed Slope
+model.BoM.N1.NS <- makeBayouModel(log.ECV.dat ~ log.BoM.dat, rjpars = c("theta"), 
+                           tree=BrBo.DC.GS.SS.AP.tree, dat=log.ECV.dat, pred=log.BoM.dat,
+                           SE=sqrt(me.ECV.species), prior=prior.BoM.N1.NS, D=BoM.DN1)
+
+#Model with BoM as Predictor, Random Intercept, Fixed Slope
+model.BoM.N1 <- makeBayouModel(log.ECV.dat ~ log.BoM.dat, rjpars = c("theta"), 
+                           tree=BrBo.DC.GS.SS.AP.tree, dat=log.ECV.dat, pred=log.BoM.dat,
+                           SE=sqrt(me.ECV.species), prior=prior.BoM.N1, D=BoM.DN1)
+
+
+#NO SHIFTS - Model with BoM as Predictor, Random Intercept, Random Slope
+model.BoM.NN.NS <- makeBayouModel(log.ECV.dat ~ log.BoM.dat, rjpars = 
+                          c("theta","log.BoM.dat"),
+                          tree=BrBo.DC.GS.SS.AP.tree, dat=log.ECV.dat, pred=log.BoM.dat,
+                          SE=sqrt(me.ECV.species), prior=prior.BoM.NN.NS, D=BoM.DNN)
+
+
+#Model with BoM as Predictor, Random Intercept, Random Slope
+model.BoM.NN <- makeBayouModel(log.ECV.dat ~ log.BoM.dat, rjpars = 
+                          c("theta","log.BoM.dat"),
+                          tree=BrBo.DC.GS.SS.AP.tree, dat=log.ECV.dat, pred=log.BoM.dat,
+                          SE=sqrt(me.ECV.species), prior=prior.BoM.NN, D=BoM.DNN)
+```
+
+
+No Shifts - First 10K
+For log normal on alphas
+```{r}
+## Make MCMC objects:
+mcmc.BoM.11.ch1 <- bayou.makeMCMC(tree=BrBo.DC.GS.SS.AP.tree, dat=log.ECV.dat, pred=log.BoM.dat, SE=sqrt(me.ECV.species), model=model.BoM.11$model, prior=prior.BoM.11, startpar=model.BoM.11$startpar, outname="modelBoM_11_r001", plot.freq=NULL,ticker.freq=2000, samp = 100,file.dir="/Users/markgrabowski/Documents/Academic/Research/Current Projects/Brain Size Diet + Social System - Moved to Mac Pro GD/SB Revision 2/Results/bayou Results")
+
+#BoM as predictor, Fixed Intercept, Fixed Slope
+mcmc.BoM.11.ch2 <- bayou.makeMCMC(tree=BrBo.DC.GS.SS.AP.tree, dat=log.ECV.dat, pred=log.BoM.dat, SE=sqrt(me.ECV.species), model=model.BoM.11$model, prior=prior.BoM.11, startpar=model.BoM.11$startpar, outname="modelBoM_11_r002", plot.freq=NULL,ticker.freq=2000, samp = 100,file.dir="/Users/markgrabowski/Documents/Academic/Research/Current Projects/Brain Size Diet + Social System - Moved to Mac Pro GD/SB Revision 2/Results/bayou Results")
+
+##### No Shifts first 10K
+#BoM as predictor, Random Intercept, Fixed Slope - No Shifts first 10K
+mcmc.BoM.N1.ch1 <- bayou.makeMCMC(tree=BrBo.DC.GS.SS.AP.tree, dat=log.ECV.dat, pred=log.BoM.dat, SE=sqrt(me.ECV.species), model=model.BoM.N1.NS$model, prior=prior.BoM.N1.NS, startpar=model.BoM.N1.NS$startpar, outname="modelBoM_N1_r001", plot.freq=NULL,ticker.freq=2000, samp = 100,file.dir="/Users/markgrabowski/Documents/Academic/Research/Current Projects/Brain Size Diet + Social System - Moved to Mac Pro GD/SB Revision 2/Results/bayou Results")
+
+
+#BoM as predictor, Random Intercept, Fixed Slope - No Shifts first 10K
+mcmc.BoM.N1.ch2 <- bayou.makeMCMC(tree=BrBo.DC.GS.SS.AP.tree, dat=log.ECV.dat, pred=log.BoM.dat, SE=sqrt(me.ECV.species), model=model.BoM.N1.NS$model, prior=prior.BoM.N1.NS, startpar=model.BoM.N1.NS$startpar, outname="modelBoM_N1_r002", plot.freq=NULL,ticker.freq=2000, samp = 100,file.dir="/Users/markgrabowski/Documents/Academic/Research/Current Projects/Brain Size Diet + Social System - Moved to Mac Pro GD/SB Revision 2/Results/bayou Results")
+
+#BoM as predictor, Random Intercept, Random Slope - No shifts first 10K
+mcmc.BoM.NN.ch1 <- bayou.makeMCMC(tree=BrBo.DC.GS.SS.AP.tree, dat=log.ECV.dat, pred=log.BoM.dat, SE=sqrt(me.ECV.species), model=model.BoM.NN.NS$model, prior=prior.BoM.NN.NS, startpar=model.BoM.NN.NS$startpar, outname="modelBoM_NN_r001", plot.freq=NULL,ticker.freq=2000, samp = 100,file.dir="/Users/markgrabowski/Documents/Academic/Research/Current Projects/Brain Size Diet + Social System - Moved to Mac Pro GD/SB Revision 2/Results/bayou Results")
+
+
+#BoM as predictor, Random Intercept, Random Slope - No shifts first 10K
+mcmc.BoM.NN.ch2 <- bayou.makeMCMC(tree=BrBo.DC.GS.SS.AP.tree, dat=log.ECV.dat, pred=log.BoM.dat, SE=sqrt(me.ECV.species), model=model.BoM.NN.NS$model, prior=prior.BoM.NN.NS, startpar=model.BoM.NN.NS$startpar, outname="modelBoM_NN_r002", plot.freq=NULL,ticker.freq=2000, samp = 100,file.dir="/Users/markgrabowski/Documents/Academic/Research/Current Projects/Brain Size Diet + Social System - Moved to Mac Pro GD/SB Revision 2/Results/bayou Results")
+
+```
+
+Run models: #First 10K generations run with prior that does not allow shifts (NS)
+```{r}
+registerDoParallel(cores=8)
+######################
+ngens<-10000
+mcmc.BoM.11.ch1$run(ngens)
+mcmc.BoM.N1.ch1$run(ngens)
+mcmc.BoM.NN.ch1$run(ngens)
+
+mcmc.BoM.11.ch2$run(ngens)
+mcmc.BoM.N1.ch2$run(ngens)
+mcmc.BoM.NN.ch2$run(ngens)
+
+
+```
+Runs to tweak tuning parameters and run full models - with shifts allowed.
+```{r}
+## Make MCMC objects:
+mcmc.BoM.11.ch1 <- bayou.makeMCMC(tree=BrBo.DC.GS.SS.AP.tree, dat=log.ECV.dat, pred=log.BoM.dat, SE=sqrt(me.ECV.species), model=model.BoM.11$model, prior=prior.BoM.11, startpar=model.BoM.11$startpar, outname="modelBoM_11_r001", plot.freq=NULL,ticker.freq=2000, samp = 100,file.dir="/Users/markgrabowski/Documents/Academic/Research/Current Projects/Brain Size Diet + Social System - Moved to Mac Pro GD/SB Revision 2/Results/bayou Results")
+
+#BoM as predictor, Fixed Intercept, Fixed Slope
+mcmc.BoM.11.ch2 <- bayou.makeMCMC(tree=BrBo.DC.GS.SS.AP.tree, dat=log.ECV.dat, pred=log.BoM.dat, SE=sqrt(me.ECV.species), model=model.BoM.11$model, prior=prior.BoM.11, startpar=model.BoM.11$startpar, outname="modelBoM_11_r002", plot.freq=NULL,ticker.freq=2000, samp = 100,file.dir="/Users/markgrabowski/Documents/Academic/Research/Current Projects/Brain Size Diet + Social System - Moved to Mac Pro GD/SB Revision 2/Results/bayou Results")
+
+#############################################
+#####With Shifts - for After 10K
+#BoM as predictor, Random Intercept, Fixed Slope
+mcmc.BoM.N1.ch1 <- bayou.makeMCMC(tree=BrBo.DC.GS.SS.AP.tree, dat=log.ECV.dat, pred=log.BoM.dat, SE=sqrt(me.ECV.species), model=model.BoM.N1$model, prior=prior.BoM.N1, startpar=model.BoM.N1$startpar, outname="modelBoM_N1_r001", plot.freq=NULL,ticker.freq=2000, samp = 100,file.dir="/Users/markgrabowski/Documents/Academic/Research/Current Projects/Brain Size Diet + Social System - Moved to Mac Pro GD/SB Revision 2/Results/bayou Results")
+
+#BoM as predictor, Random Intercept, Fixed Slope
+mcmc.BoM.N1.ch2 <- bayou.makeMCMC(tree=BrBo.DC.GS.SS.AP.tree, dat=log.ECV.dat, pred=log.BoM.dat, SE=sqrt(me.ECV.species), model=model.BoM.N1$model, prior=prior.BoM.N1, startpar=model.BoM.N1$startpar, outname="modelBoM_N1_r002", plot.freq=NULL,ticker.freq=2000, samp = 100,file.dir="/Users/markgrabowski/Documents/Academic/Research/Current Projects/Brain Size Diet + Social System - Moved to Mac Pro GD/SB Revision 2/Results/bayou Results")
+
+#BoM as predictor, Random Intercept, Random Slope
+mcmc.BoM.NN.ch1 <- bayou.makeMCMC(tree=BrBo.DC.GS.SS.AP.tree, dat=log.ECV.dat, pred=log.BoM.dat, SE=sqrt(me.ECV.species), model=model.BoM.NN$model, prior=prior.BoM.NN, startpar=model.BoM.NN$startpar, outname="modelBoM_NN_r001", plot.freq=NULL,ticker.freq=2000, samp = 100,file.dir="/Users/markgrabowski/Documents/Academic/Research/Current Projects/Brain Size Diet + Social System - Moved to Mac Pro GD/SB Revision 2/Results/bayou Results")
+
+#BoM as predictor, Random Intercept, Random Slope
+mcmc.BoM.NN.ch2 <- bayou.makeMCMC(tree=BrBo.DC.GS.SS.AP.tree, dat=log.ECV.dat, pred=log.BoM.dat, SE=sqrt(me.ECV.species), model=model.BoM.NN$model, prior=prior.BoM.NN, startpar=model.BoM.NN$startpar, outname="modelBoM_NN_r002", plot.freq=NULL,ticker.freq=2000, samp = 100,file.dir="/Users/markgrabowski/Documents/Academic/Research/Current Projects/Brain Size Diet + Social System - Moved to Mac Pro GD/SB Revision 2/Results/bayou Results")
+
+#####
+```
+Run Models
+```{r}
+registerDoParallel(cores=8)
+######################
+ngens<-30000 #Run to tweak tuning parameters
+
+mcmc.BoM.11.ch1$run(ngens)
+mcmc.BoM.N1.ch1$run(ngens)
+mcmc.BoM.NN.ch1$run(ngens)
+
+######################
+```
+
+```{r}
+#############################################
+#Now go up and change to shifts allowed prior, run rest with allowed shifts
+registerDoParallel(cores=8)
+#######################################
+#ngens<-2990000
+ngens<-3000000
+mcmc.BoM.11.ch1$run(ngens)
+mcmc.BoM.N1.ch1$run(ngens)
+mcmc.BoM.NN.ch1$run(ngens)
+mcmc.BoM.11.ch2$run(ngens)
+mcmc.BoM.N1.ch2$run(ngens)
+mcmc.BoM.NN.ch2$run(ngens)
+
+
+chain.BoM.11.ch1 <- set.burnin(mcmc.BoM.11.ch1$load(saveRDS=TRUE), 0.3)
+chain.BoM.N1.ch1 <- set.burnin(mcmc.BoM.N1.ch1$load(saveRDS=TRUE), 0.3)
+chain.BoM.NN.ch1 <- set.burnin(mcmc.BoM.NN.ch1$load(saveRDS=TRUE), 0.3)
+
+chain.BoM.11.ch2 <- set.burnin(mcmc.BoM.11.ch2$load(saveRDS=TRUE), 0.3)
+chain.BoM.N1.ch2 <- set.burnin(mcmc.BoM.N1.ch2$load(saveRDS=TRUE), 0.3)
+chain.BoM.NN.ch2 <- set.burnin(mcmc.BoM.NN.ch2$load(saveRDS=TRUE), 0.3)
+
+#save.image("~/Google Drive/Shared with Mac Pro/Brain Size Diet + Social System/SB Revision 1/WS/WS from bayou - SBR1 - 128 sp - 051721.RData")
+
+#save.image("WS from bayou - SBR2 - 129 sp - tree 73 Ma 042722.RData") 
+
+
+```
+
+Set burnin and look at results
+```{r}
+
+summary(chain.BoM.11.ch1)
+plot(chain.BoM.11.ch1)
+
+summary(chain.BoM.N1.ch1)
+plot(chain.BoM.N1.ch1)
+
+summary(chain.BoM.NN.ch1)
+plot(chain.BoM.NN.ch1)
+
+summary(chain.BoM.11.ch2)
+plot(chain.BoM.11.ch2)
+
+summary(chain.BoM.N1.ch2)
+plot(chain.BoM.N1.ch2)
+
+summary(chain.BoM.NN.ch2)
+  plot(chain.BoM.NN.ch2)
+
+```
+
+Look at results graphically
+```{r}
+par(mfrow=c(1,1))
+
+plotSimmap.mcmc(chain.BoM.N1.ch1, lwd=2, show.tip.label=FALSE,pp.cutoff=0.3)
+plotSimmap.mcmc(chain.BoM.N1.ch2, lwd=2, show.tip.label=FALSE,pp.cutoff=0.3)
+
+plotSimmap.mcmc(chain.BoM.NN.ch1, lwd=2, show.tip.label=FALSE,pp.cutoff=0.3)
+plotSimmap.mcmc(chain.BoM.NN.ch2, lwd=2, show.tip.label=FALSE,pp.cutoff=0.3)
+
+
+```
+
+Show all shifts with posterior probabilities greater than pp.cutoff = 0.2.
+```{r}
+phenogram.density(BrBo.DC.GS.SS.AP.tree, log.ECV.dat, chain=chain.BoM.N1.ch1, pp.cutoff=0.2)
+phenogram.density(BrBo.DC.GS.SS.AP.tree, log.ECV.dat, chain=chain.BoM.N1.ch2, pp.cutoff=0.2)
+
+phenogram.density(BrBo.DC.GS.SS.AP.tree, log.ECV.dat, chain=chain.BoM.NN.ch1, pp.cutoff=0.2)
+phenogram.density(BrBo.DC.GS.SS.AP.tree, log.ECV.dat, chain=chain.BoM.NN.ch2, pp.cutoff=0.2)
+
+
+```
+
+Compare chains
+```{r}
+
+RlnL.12 <- gelman.R("lnL", chain1=chain.BoM.11.ch1, chain2=chain.BoM.11.ch2, plot=TRUE, type="n")
+Ralpha.12 <- gelman.R("alpha", chain1=chain.BoM.11.ch1, chain2=chain.BoM.11.ch2, plot=TRUE, type="n")
+Rsig2.12 <- gelman.R("sig2", chain1=chain.BoM.11.ch1, chain2=chain.BoM.11.ch2, plot=TRUE, type="n")
+
+RlnL <- gelman.R("lnL", chain1=chain.BoM.N1.ch1, chain2=chain.BoM.N1.ch2, plot=TRUE, type="n", ylim=c(0.8, 1.2))
+Ralpha <- gelman.R("alpha", chain1=chain.BoM.N1.ch1, chain2=chain.BoM.N1.ch2, plot=TRUE, type="n", ylim=c(0.95, 1.2))
+Rsig2 <- gelman.R("sig2", chain1=chain.BoM.N1.ch1, chain2=chain.BoM.N1.ch2, plot=TRUE, type="n", ylim=c(0.95, 1.2))
+
+L1 <- Lposterior(chain.BoM.N1.ch1,BrBo.DC.GS.SS.AP.tree, burnin=0.3)
+L2 <- Lposterior(chain.BoM.N1.ch2,BrBo.DC.GS.SS.AP.tree, burnin=0.3)
+plot(L1$pp,L2$pp, xlim=c(0,1), ylim=c(0,1), xlab="Chain 1", ylab="Chain 2")
+curve(1*x, add=TRUE, lty=2)
+
+RlnL <- gelman.R("lnL", chain1=chain.BoM.NN.ch1, chain2=chain.BoM.NN.ch2, plot=TRUE, type="n", ylim=c(0.95, 1.2))
+Ralpha <- gelman.R("alpha", chain1=chain.BoM.NN.ch1, chain2=chain.BoM.NN.ch2, plot=TRUE, type="n", ylim=c(0.95, 1.2))
+Rsig2 <- gelman.R("sig2", chain1=chain.BoM.NN.ch1, chain2=chain.BoM.NN.ch2, plot=TRUE, type="n", ylim=c(0.95, 1.2))
+
+
+L1 <- Lposterior(chain.BoM.NN.ch1,BrBo.DC.GS.SS.AP.tree, burnin=0.3)
+L2 <- Lposterior(chain.BoM.NN.ch2,BrBo.DC.GS.SS.AP.tree, burnin=0.3)
+plot(L1$pp,L2$pp, xlim=c(0,1), ylim=c(0,1), xlab="Chain 1", ylab="Chain 2")
+curve(1*x, add=TRUE, lty=2)
+
+
+```
+
+Combine chains and look at results
+```{r}
+chains.11 <- combine.chains(list(chain.BoM.11.ch1, chain.BoM.11.ch2), burnin.prop=0.3)
+
+summary(chains.11)
+quartz()
+plot(chains.11)
+
+chains.N1 <- combine.chains(list(chain.BoM.N1.ch1, chain.BoM.N1.ch2), burnin.prop=0.3)
+summary(chains.N1)
+plot(chains.N1)
+
+chains.NN <- combine.chains(list(chain.BoM.NN.ch1, chain.BoM.NN.ch2), burnin.prop=0.3)
+summary(chains.NN)
+plot(chains.NN)
+
+```
+
+Compare different models by estimating marginal likelihoods using steppingstone function.
+```{r}
+library(doParallel)
+registerDoParallel(cores=10)
+Bk <- qbeta(seq(0,1, length.out=50), 0.3,1)
+ngens<-10000
+ss.11 <- mcmc.BoM.11.ch1$steppingstone(ngens, chains.11, Bk, burnin=0.3, plot=FALSE)
+ss.N1 <- mcmc.BoM.N1.ch1$steppingstone(ngens, chains.N1, Bk, burnin=0.3, plot=FALSE)
+ss.NN <- mcmc.BoM.NN.ch1$steppingstone(ngens, chains.NN, Bk, burnin=0.3, plot=FALSE)
+
+mlnL <- c("11"=ss.11$lnr, "N1"=ss.N1$lnr, "NN"=ss.NN$lnr)
+mlnL
+
+#Bayes factor comparison
+2*(ss.N1$lnr-ss.11$lnr)
+2*(ss.N1$lnr-ss.NN$lnr)
+2*(ss.11$lnr-ss.NN$lnr)
+2*(ss.NN$lnr-ss.11$lnr)
+2*(ss.NN$lnr-ss.N1$lnr)
+
+
+plot(ss.11)
+print(ss.11)
+plot(ss.N1)
+print(ss.N1)
+plot(ss.NN)
+print(ss.NN)
+
+
+```
+
+
+Store shifts and plot on phylogewny
+
+```{r}
+shiftsumsN1 <- shiftSummaries(chains.N1, mcmc.BoM.N1.ch1,pp.cutoff=0.4)#, burnin=0.3)
+shiftsumsNN <- shiftSummaries(chains.NN, mcmc.BoM.NN.ch1, pp.cutoff=0.5)#, burnin=0.3)
+
+plotShiftSummaries(shiftsumsN1)
+plotShiftSummaries(shiftsumsNN)
+
+
+shiftsumsN1$descendents
+shiftsumsNN$descendents
+
+shiftsumsN1$regressions
+shiftsumsN1$regressions
+
+pdf("ShiftSummaries.pdf", height=8, width=8)
+plotShiftSummaries(shiftsumsN1)
+dev.off()
+
+```
+
+
+Fig 1: Make Plots for Bayou
+```{r}
+library(ggsci)
+#########################
+par(mfrow=c(1,1))
+par(bg = 'white')
+cols<-viridis(4)
+
+reg.colors<-pal_aaas(palette=c("default"),alpha=0.8)(9)
+library(scales)
+show_col(pal_aaas("default")(9))
+
+#Posterior probabilities proportional to circle diameter:
+pdf("Simmap_mcmc.pdf", height=6, width=4)
+
+#No tip labels - main plot
+plotSimmap.mcmc(chains.N1, cex=0.2,lwd=1.0,edge.type="regimes", pp.cutoff=0.5,circle.cex.max = 4.0,label.offset=1,pal = pal_aaas(),show.tip.label=FALSE)
+axisPhylo(side=1,cex.axis=0.6,lwd=0.6)
+
+#With tip labels for SI
+plotSimmap.mcmc(chains.N1, cex=0.2,lwd=1.0,edge.type="regimes", pp.cutoff=0.5,circle.cex.max = 4.0,label.offset=1,pal = pal_aaas(),show.tip.label=TRUE)
+axisPhylo(side=1,cex.axis=0.6,lwd=0.6)
+ 
+#With edge labels
+plotSimmap.mcmc(chains.N1, cex=0.2,lwd=1.0,edge.type="regimes",pp.cutoff=0.5,circle.cex.max = 1.0,circles=FALSE,pp.labels = TRUE,pp.cex=0.25)
+edgelabels(cex=0.25,frame="none",adj=c(1,1))
+axisPhylo(side=1,cex.axis=0.6,lwd=0.6)
+
+#Fig S1
+plotBranchHeatMap(BrBo.DC.GS.SS.AP.tree, chains.N1, variable="theta",pal=cm.colors,cex=0.2)
+
+dev.off()
+#4X6 -Fig 1, then cut out
+
+```
+
+
+Fig S1
+```{r}
+#quartz()
+par(mfrow=c(1,1))
+
+plot(BrBo.DC.GS.SS.AP.tree,cex=0.1)
+nodelabels(cex=0.25)
+
+plot(chains.N1)
+
+```
+
+```{r}
+library(ggsci)
+#########################
+par(mfrow=c(1,1))
+par(bg = 'white')
+cols<-viridis(4)
+
+reg.colors<-pal_aaas(palette=c("default"),alpha=0.8)(9)
+library(scales)
+show_col(pal_aaas("default")(9))
+
+#Posterior probabilities proportional to circle diameter:
+pdf("Simmap_mcmc.pdf", height=6, width=4)
+
+#No tip labels - main plot
+plotSimmap.mcmc(chains.NN, cex=0.2,lwd=1.0,edge.type="regimes", pp.cutoff=0.5,circle.cex.max = 4.0,label.offset=1,pal = pal_aaas(),show.tip.label=FALSE)
+axisPhylo(side=1,cex.axis=0.6,lwd=0.6)
+
+#With tip labels for SI
+plotSimmap.mcmc(chains.NN, cex=0.2,lwd=1.0,edge.type="regimes", pp.cutoff=0.5,circle.cex.max = 4.0,label.offset=1,pal = pal_aaas(),show.tip.label=TRUE)
+axisPhylo(side=1,cex.axis=0.6,lwd=0.6)
+ 
+#With edge labels
+plotSimmap.mcmc(chains.NN, cex=0.2,lwd=1.0,edge.type="regimes",pp.cutoff=0.5,circle.cex.max = 1.0,circles=FALSE,pp.labels = TRUE,pp.cex=0.25)
+edgelabels(cex=0.25,frame="none",adj=c(1,1))
+axisPhylo(side=1,cex.axis=0.6,lwd=0.6)
+
+#Fig S1
+plotBranchHeatMap(BrBo.DC.GS.SS.AP.tree, chains.NN, variable="theta",pal=cm.colors,cex=0.2)
+
+dev.off()
+
+
+```
+
+
+```{r}
+write.table(slouch.output,"AllPrimates_Slouch_Table_04242022_woPW.csv",sep=",",row.names=FALSE)
+
+
+```
+

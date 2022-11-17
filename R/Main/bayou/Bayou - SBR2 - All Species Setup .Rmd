@@ -1,0 +1,179 @@
+---
+title: "Grabowski et al. - SBR2 - Bayou Setup - log Brain Size ~ log Body Size"
+output: html_notebook
+editor_options: 
+  chunk_output_type: console
+---
+
+All Primates Analysis
+```{r}
+rm(list=ls())
+require(bayou)
+library(treeplyr)
+library(dplyr)
+library(plyr)
+options(scipen=999)
+#For execution on a local, multicore CPU with excess RAM we recommend calling
+options(mc.cores = parallel::detectCores())
+
+
+```
+
+Read in all data, including data on brain and body size with measurement error from Grabowski et al. (2016)
+
+```{r}
+#SB Revision 1 Tree
+phylo.tree<-read.tree("/Volumes/GoogleDrive/My Drive/Shared with Mac Pro/Brain Size Diet + Social System/SB Revision 1/Tree/SB_Rv1_10K.tre")
+
+#After renaming family to Callitrichidae - only change
+brbo.data<-read.csv("/Volumes/GoogleDrive/My Drive/Shared with Mac Pro/Brain Size Diet + Social System/New Data/ME Data/BrBo_means_predME_10192020_Callitri_tarsiers_step.csv")
+
+diet.data<-read.csv("/Volumes/GoogleDrive/My Drive/Shared with Mac Pro/Brain Size Diet + Social System/New Data/My Diet Data/Primate_Diet_Breakdown_100119.csv")
+
+avg_GS.data<-read.csv("/Volumes/GoogleDrive/My Drive/Shared with Mac Pro/Brain Size Diet + Social System/New Data/New Group Size Data/Average.GS.DeCasien.Powell.041522.csv")
+
+SS.data<-read.csv("/Volumes/GoogleDrive/My Drive/Shared with Mac Pro/Brain Size Diet + Social System/New Data/New SS Data/DeCasien MG Latest SS 041422.csv")
+
+
+```
+
+Drop tip for Chiropotes satanas to match original submission sample
+```{r}
+#which(phylo.tree$tip.label=="Chiropotes_satanas")
+#length(phylo.tree$tip.label)
+#phylo.tree<-drop.tip(phylo.tree,tip="Chiropotes_satanas")
+#length(phylo.tree$tip.label)
+```
+
+
+Rescale to unit length
+```{r}
+l.tree<-max(branching.times(phylo.tree))
+phylo.tree$edge.length<-phylo.tree$edge.length/l.tree ## rescale tree to height 1
+max(branching.times(phylo.tree))
+
+```
+
+
+Get tree length
+```{r}
+phylo.tree <- multi2di(phylo.tree, random=FALSE)
+phylo.tree$edge.length[phylo.tree$edge.length==0] <- .Machine$double.eps
+
+#Reorder tree "postorder" to match bayou
+phylo.tree<-reorder(phylo.tree,order = "postorder")
+max(branching.times(phylo.tree))
+```
+
+
+Add on measurement error columns for Brain and Body Size
+```{r}
+#Brain/Body/Diet Data
+brbo.data$N.species
+
+brbo.data<-mutate(brbo.data,me.ECV.species=brbo.data$predict.sp.ln_ECV/brbo.data$N.species)
+brbo.data<-mutate(brbo.data,me.BoM.species=brbo.data$predict.sp.ln_Body.mass/brbo.data$N.body.mass.species)
+
+brbo.data<-mutate(brbo.data,me.ECV.females=brbo.data$predict.F.ln_ECV/brbo.data$N.female)
+brbo.data<-mutate(brbo.data,me.BoM.females=brbo.data$predict.F.ln_Body.mass/brbo.data$N.body.mass.female)
+
+brbo.data<-mutate(brbo.data,me.ECV.males=brbo.data$predict.M.ln_ECV/brbo.data$N.male)
+brbo.data<-mutate(brbo.data,me.BoM.males=brbo.data$predict.M.ln_Body.mass/brbo.data$N.body.mass.male)
+```
+
+Split into Haplorhinnes vs. Strepsirrhines
+```{r}
+#brbo.data<-filter(brbo.data,Suborder=="Haplorrhini")
+#brbo.data<-filter(brbo.data,Suborder=="Strepsirrhini")
+#brbo.data<-filter(brbo.data,Parvorder=="Catarrhini")
+#brbo.data<-filter(brbo.data,Parvorder=="Platyrrhini")
+
+```
+
+Max vy for body mass - add in upper range for vy
+```{r}
+#3* Variance of logged response is good upper range for vy says Kjetil, but too much in this case
+max.vy<-var(log(brbo.data$Body.mass.species.mean),na.rm=TRUE)
+max.hl<-max(branching.times(phylo.tree))
+```
+
+Diet Data, independently
+```{r}
+#Frug/Non Frug, Fol/Non Fol Diet Category Data
+BrBo.diet.data<-merge(brbo.data,diet.data,by="Genus_Species")
+dim(BrBo.diet.data)
+
+BrBo.diet.trdata <- make.treedata(phylo.tree, BrBo.diet.data,name_column="Genus_Species")
+#BrBo.diet.trdata<-filter(BrBo.diet.trdata,!is.na(ECV.species.mean)&!is.na(Body.mass.species.mean)&!is.na(Frug.Non.Frug))
+
+BrBo.diet.trdata<-filter(BrBo.diet.trdata,!is.na(ECV.species.mean)&!is.na(Body.mass.species.mean))
+
+dim(BrBo.diet.trdata$dat)
+
+#For original file with non-substuted males/females for species means
+BrBo.diet.trdata<-filter(BrBo.diet.trdata, N.male>=1 & N.body.mass.male>=1 & N.female>=1 & N.body.mass.female>=1 & N.species>1 & N.body.mass.species>1)
+#BrBo.diet.trdata<-filter(BrBo.diet.trdata,N.species!="NA" & N.body.mass.species!="NA")
+
+#BrBo.diet.trdata<-filter(BrBo.diet.trdata, N.species>=1 & N.body.mass.species>=1)
+#BrBo.diet.trdata<-filter(BrBo.diet.trdata,N.species!="NA" & N.body.mass.species!="NA")
+
+dim(BrBo.diet.trdata$dat)
+
+#write.table(BrBo.diet.trdata$dat,"test.csv",sep=",",row.names = FALSE)
+
+```
+
+Setup for Merged Data
+Merged Brain/Body + Diet % + DC + GS + SS + AP, n=XX
+```{r}
+BrBo.Diet.GS.data<-merge(BrBo.diet.data,avg_GS.data,by="Genus_Species")
+BrBo.Diet.GS.SS.data<-merge(BrBo.Diet.GS.data,SS.data,by="Genus_Species")
+
+dim(BrBo.Diet.GS.SS.data)
+
+BrBo.DC.GS.SS.AP.trdata <- make.treedata(phylo.tree, BrBo.Diet.GS.SS.data,name_column="Genus_Species")
+
+BrBo.DC.GS.SS.AP.trdata<-filter(BrBo.DC.GS.SS.AP.trdata,!is.na(ECV.species.mean)&!is.na(Body.mass.species.mean)&!is.na(Combo.AGS)&!is.na(Social.System)&!is.na(Frug.Non.Frug))
+
+
+BrBo.DC.GS.SS.AP.trdata<-filter(BrBo.DC.GS.SS.AP.trdata, N.male>=1 & N.body.mass.male>=1 & N.female>=1 & N.body.mass.female>=1 & N.species>1 & N.body.mass.species>1)
+
+BrBo.DC.GS.SS.AP.trdata$dat$Fol.Non.Fol<-revalue(BrBo.DC.GS.SS.AP.trdata$dat$Fol.Non.Fol,c("Fol"="Folivorous","Non.Fol"="Non"))
+
+BrBo.DC.GS.SS.AP.trdata$dat$Frug.Non.Frug<-revalue(BrBo.DC.GS.SS.AP.trdata$dat$Frug.Non.Frug,c("Frug"="Frugivorous","Non.Frug"="Non"))
+
+dim(BrBo.DC.GS.SS.AP.trdata$dat)
+
+```
+
+Setup for bayou analysis
+```{r}
+#ECV
+log.ECV.dat<-log(BrBo.DC.GS.SS.AP.trdata[['ECV.species.mean']])
+me.ECV.species<-BrBo.DC.GS.SS.AP.trdata[['me.ECV.species']]
+
+#Body Mass
+log.BoM.dat<-log(BrBo.DC.GS.SS.AP.trdata[['Body.mass.species.mean']])
+log.BoM.dat<-as.matrix(log.BoM.dat)
+colnames(log.BoM.dat)<-"log.BoM.dat"
+#log.BoM.dat<-t(log.BoM.dat)
+
+me.BoM.species<-BrBo.DC.GS.SS.AP.trdata[['me.BoM.species']]
+
+BrBo.DC.GS.SS.AP.tree<-BrBo.DC.GS.SS.AP.trdata$phy
+
+```
+
+
+```{r}
+ntips <-length(BrBo.DC.GS.SS.AP.trdata$tip.label)
+ntips
+```
+
+
+Save WS for bayou
+```{r}
+save.image("WS for bayou - SBR2 -128 sp 042422.RData")
+
+```
+
