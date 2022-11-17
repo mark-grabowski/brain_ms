@@ -1,0 +1,576 @@
+---
+title: "SBR2 - BDS ms All Primates Make SIMMAPs Code - Univariate - 062722 v1"
+output: html_notebook
+editor_options: 
+  chunk_output_type: console
+---
+All Primates Analysis
+
+Run: SIMMAPS 062722 v1
+	Testing revised data from R2 but running original fitMk program, not parallel
+	Gorilla g in strict classification is folivore
+	Predictors:
+		Fol.Non.Fol.Strict
+		Fol.Non.Fol.Per
+		Frug.Non.Frug.Per
+		Social.System.DRclass
+		Social.System.DGT
+		Mating.System
+		Activity.Period.DN
+		GSC >50
+
+```{r}
+
+rm(list=ls())
+#setDefaultCluster(cl=NULL); stopCluster(cl) 
+
+closeAllConnections()
+
+#devtools::install_github("kopperud/slouch")
+library(slouch)
+
+#devtools::install_github("liamrevell/phytools")
+library(treeplyr)
+library(phytools)
+library(optimParallel)
+
+#library(bayou)
+#library(plyr)
+#library(ape)
+#library(viridis)
+options(scipen=999)
+
+#For execution on a local, multicore CPU with excess RAM we recommend calling
+#options(mc.cores = parallel::detectCores()-2)
+
+#Load programs written for R1
+source("/Volumes/GoogleDrive/My Drive/Shared with Mac Pro/Brain Size Diet + Social System/SB Revision 1/Programs/make.slouch.simmap.table.v1.R")
+
+source("/Volumes/GoogleDrive/My Drive/Shared with Mac Pro/Brain Size Diet + Social System/SB Revision 1/Programs/make.slouch.simmap.AIC.table.R1.v1.R")
+
+source("/Volumes/GoogleDrive/My Drive/Shared with Mac Pro/Brain Size Diet + Social System/SB Revision 1/Programs/make.regression.table.R1.R")
+
+source("/Volumes/GoogleDrive/My Drive/Shared with Mac Pro/Brain Size Diet + Social System/SB Revision 1/Programs/make.slouch.table.R1.v1.R")
+
+#source("/Volumes/GoogleDrive/My Drive/Shared with Mac Pro/Brain Size Diet + Social System/Programs/fitMk.parallel.LR.R")
+
+```
+
+Read in all data, including data on brain and body size with measurement error from Grabowski et al. (2016)
+
+```{r}
+#Orignal submission tree
+#phylo.tree<-read.tree("/Users/markgrabowski/Google Drive/Shared with Mac Pro/Brain Size Diet + Social System/New Data/Tree/AAPA_111118_10K.tre")
+
+#SB Revision 1 Tree
+phylo.tree<-read.tree("/Volumes/GoogleDrive/My Drive/Shared with Mac Pro/Brain Size Diet + Social System/SB Revision 1/Tree/SB_Rv1_10K.tre")
+
+#After renaming family to Callitrichidae - only change
+brbo.data<-read.csv("/Volumes/GoogleDrive/My Drive/Shared with Mac Pro/Brain Size Diet + Social System/New Data/ME Data/BrBo_means_predME_10192020_Callitri_tarsiers_step.csv")
+
+
+#diet.data<-read.csv("/Volumes/GoogleDrive/My Drive/Shared with Mac Pro/Brain Size Diet + Social System/New Data/My Diet Data/Primate_Diet_Breakdown_051222.csv") #052122 Runs Data
+
+diet.data<-read.csv("/Volumes/GoogleDrive/My Drive/Shared with Mac Pro/Brain Size Diet + Social System/New Data/My Diet Data/Primate_Diet_Breakdown_062522.csv")
+
+avg_GS.data<-read.csv("/Volumes/GoogleDrive/My Drive/Shared with Mac Pro/Brain Size Diet + Social System/New Data/New Group Size Data/ActPeriod GroupSize Data 050822.csv")
+
+#avg_GS.data<-read.csv("/Volumes/GoogleDrive/My Drive/Shared with Mac Pro/Brain Size Diet + Social System/New Data/New Group Size Data/Average.GS.DeCasien.Powell.01232019.csv")
+
+#SS.data<-read.csv("/Volumes/GoogleDrive/My Drive/Shared with Mac Pro/Brain Size Diet + Social System/New Data/New SS Data/DeCasien MG Latest SS 041422.csv")
+
+SS.data<-read.csv("/Volumes/GoogleDrive/My Drive/Shared with Mac Pro/Brain Size Diet + Social System/New Data/New SS Data/Sociality Dataset 061022.csv")
+
+
+```
+
+Drop tip for Chiropotes satanas to match original submission sample
+```{r}
+#which(phylo.tree$tip.label=="Chiropotes_satanas")
+#length(phylo.tree$tip.label)
+#phylo.tree<-drop.tip(phylo.tree,tip="Chiropotes_satanas")
+#length(phylo.tree$tip.label)
+```
+
+
+Drop tip for Callimico_goeldii to match R1 submission
+```{r}
+which(phylo.tree$tip.label=="Callimico_goeldii")
+length(phylo.tree$tip.label)
+phylo.tree<-drop.tip(phylo.tree,tip="Callimico_goeldii")
+length(phylo.tree$tip.label)
+
+```
+
+
+Rescale to unit length
+```{r}
+l.tree<-max(branching.times(phylo.tree))
+phylo.tree$edge.length<-phylo.tree$edge.length/l.tree ## rescale tree to height 1
+max(branching.times(phylo.tree))
+
+```
+
+
+Get tree length
+```{r}
+phylo.tree <- multi2di(phylo.tree, random=FALSE)
+phylo.tree$edge.length[phylo.tree$edge.length==0] <- .Machine$double.eps
+
+#Reorder tree "postorder" to match bayou
+#phylo.tree<-reorder(phylo.tree,order = "postorder")
+max(branching.times(phylo.tree))
+```
+
+
+Add on measurement error columns for Brain and Body Size
+```{r}
+#Brain/Body/Diet Data
+brbo.data$N.species
+
+brbo.data<-mutate(brbo.data,me.ECV.species=brbo.data$predict.sp.ln_ECV/brbo.data$N.species)
+brbo.data<-mutate(brbo.data,me.BoM.species=brbo.data$predict.sp.ln_Body.mass/brbo.data$N.body.mass.species)
+
+brbo.data<-mutate(brbo.data,me.ECV.females=brbo.data$predict.F.ln_ECV/brbo.data$N.female)
+brbo.data<-mutate(brbo.data,me.BoM.females=brbo.data$predict.F.ln_Body.mass/brbo.data$N.body.mass.female)
+
+brbo.data<-mutate(brbo.data,me.ECV.males=brbo.data$predict.M.ln_ECV/brbo.data$N.male)
+brbo.data<-mutate(brbo.data,me.BoM.males=brbo.data$predict.M.ln_Body.mass/brbo.data$N.body.mass.male)
+```
+Split into Haplorhinnes vs. Strepsirrhines
+```{r}
+#brbo.data<-filter(brbo.data,Suborder=="Haplorrhini")
+#brbo.data<-filter(brbo.data,Suborder=="Strepsirrhini")
+#brbo.data<-filter(brbo.data,Parvorder=="Catarrhini")
+#brbo.data<-filter(brbo.data,Parvorder=="Platyrrhini")
+
+```
+
+
+Max vy for body mass - add in upper range for vy
+```{r}
+#3* Variance of logged response is good upper range for vy says Kjetil, but too much in this case
+max.vy<-var(log(brbo.data$Body.mass.species.mean),na.rm=TRUE)
+max.hl<-max(branching.times(phylo.tree))
+```
+
+Diet Data, independently
+```{r}
+#Frug/Non Frug, Fol/Non Fol Diet Category Data
+BrBo.diet.data<-merge(brbo.data,diet.data,by="Genus_Species")
+dim(BrBo.diet.data)
+
+BrBo.diet.trdata <- make.treedata(phylo.tree, BrBo.diet.data,name_column="Genus_Species")
+#BrBo.diet.trdata<-filter(BrBo.diet.trdata,!is.na(ECV.species.mean)&!is.na(Body.mass.species.mean)&!is.na(Frug.Non.Frug.Per))
+
+BrBo.diet.trdata<-filter(BrBo.diet.trdata,!is.na(ECV.species.mean)&!is.na(Body.mass.species.mean))
+
+BrBo.diet.trdata<-filter(BrBo.diet.trdata,!is.na(Fol.Non.Fol.Per))
+
+dim(BrBo.diet.trdata$dat)
+
+#For original file with non-substuted males/females for species means
+BrBo.diet.trdata<-filter(BrBo.diet.trdata, N.male>=1 & N.body.mass.male>=1 & N.female>=1 & N.body.mass.female>=1 & N.species>1 & N.body.mass.species>1)
+#BrBo.diet.trdata<-filter(BrBo.diet.trdata,N.species!="NA" & N.body.mass.species!="NA")
+
+#BrBo.diet.trdata<-filter(BrBo.diet.trdata, N.species>=1 & N.body.mass.species>=1)
+#BrBo.diet.trdata<-filter(BrBo.diet.trdata,N.species!="NA" & N.body.mass.species!="NA")
+
+dim(BrBo.diet.trdata$dat)
+
+#write.table(BrBo.diet.trdata$dat,"test.csv",sep=",",row.names = FALSE)
+
+#BrBo.diet.trdata$dat$Fol.Non.Fol.Per<-revalue(BrBo.diet.trdata$dat$Fol.Non.Fol.Per,c("Fol"="Folivorous","Non.Fol"="Non"))
+
+#BrBo.diet.trdata$dat$Frug.Non.Frug.Per<-revalue(BrBo.diet.trdata$dat$Frug.Non.Frug.Per,c("Frug"="Frugivorous","Non.Frug"="Non"))
+
+```
+
+Sociality Data
+```{r}
+#Frug/Non Frug, Fol/Non Fol Diet Category Data
+BrBo.SS.data<-merge(brbo.data,SS.data,by="Genus_Species")
+dim(BrBo.SS.data)
+
+BrBo.SS.trdata <- make.treedata(phylo.tree, BrBo.SS.data,name_column="Genus_Species")
+
+BrBo.SS.trdata<-filter(BrBo.SS.trdata,!is.na(ECV.species.mean)&!is.na(Body.mass.species.mean))
+
+BrBo.SS.trdata<-filter(BrBo.SS.trdata,!is.na(Social.System.DRclass))
+
+dim(BrBo.SS.trdata$dat)
+
+#For original file with non-substuted males/females for species means
+BrBo.SS.trdata<-filter(BrBo.SS.trdata, N.male>=1 & N.body.mass.male>=1 & N.female>=1 & N.body.mass.female>=1 & N.species>1 & N.body.mass.species>1)
+
+dim(BrBo.SS.trdata$dat)
+
+#write.table(BrBo.diet.trdata$dat,"test.csv",sep=",",row.names = FALSE)
+
+```
+
+Group Size and Activity Period Data
+```{r}
+#Frug/Non Frug, Fol/Non Fol Diet Category Data
+BrBo.GS.data<-merge(brbo.data,avg_GS.data,by="Genus_Species")
+dim(BrBo.GS.data)
+
+BrBo.GS.trdata <- make.treedata(phylo.tree, BrBo.GS.data,name_column="Genus_Species")
+
+BrBo.GS.trdata<-filter(BrBo.GS.trdata,!is.na(ECV.species.mean)&!is.na(Body.mass.species.mean))
+BrBo.GS.trdata<-filter(BrBo.GS.trdata,!is.na(Combo.AGS))
+
+dim(BrBo.GS.trdata$dat)
+
+#For original file with non-substuted males/females for species means
+BrBo.GS.trdata<-filter(BrBo.GS.trdata, N.male>=1 & N.body.mass.male>=1 & N.female>=1 & N.body.mass.female>=1 & N.species>1 & N.body.mass.species>1)
+
+dim(BrBo.GS.trdata$dat)
+
+
+```
+
+
+Break average group size continuous variable into categories
+```{r}
+#################
+library(ape)
+
+#Group size into 
+gs.cat<-cut(BrBo.GS.trdata$dat$Combo.AGS,
+    #breaks = c(0,5, 10, 25, Inf), 
+    #labels = c("1-5","6-10","11-25",">25"), 
+    breaks = c(0,5, 10, 25, 50,Inf), 
+    labels = c("1-5","6-10","11-25","26-50",">50"), 
+    right = FALSE)
+
+BrBo.GS.trdata$dat$Cat.group.size<-gs.cat
+```
+
+Simmap Setup
+```{r}
+sim.num<-25 #25
+loops.num<-2 #2
+```
+
+
+
+Now use SIMMAP to reconstruct social system, group size, for painting on trees  
+```{r}
+#Setup dataset for info on model fits
+saved.discrete.models<-data.frame("Model"=NA,"AIC ER"=NA,"AIC SYM"=NA,"AIC ARD"=NA)
+```
+
+# Make SIMMAPs
+
+
+```{r}
+#cl = makeCluster(parallel::detectCores()-2) 
+#cl<-parallel::detectCores()-2 #Cl for fitMk function
+num.cores=parallel::detectCores()-2 #For mclapply function
+
+########################
+#Social System GT
+#reconstruction.ssgt <- ace(as.factor(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Social.System.DGT), BrBo.Diet.DC.GS.SS.AP.trdata$phy, type = "d")
+
+reconstruction.ssgt <- as.vector(BrBo.SS.trdata$dat$Social.System.DGT)
+names(reconstruction.ssgt)<-BrBo.SS.trdata$phy$tip.label
+#reconstruction.ssgt<-make.simmap(BrBo.Diet.DC.GS.SS.AP.trdata$phy,reconstruction.ssgt,model="ER",Q="empirical",nsim=sim.num)   
+tree<-BrBo.SS.trdata$phy
+x<-reconstruction.ssgt
+
+## fit model so we don't have to repeatedly recompute Q
+fit.ER<-fitMk(BrBo.SS.trdata$phy,x,model="ER")
+fit.SYM<-fitMk(BrBo.SS.trdata$phy,x,model="SYM")
+fit.ARD<-fitMk(BrBo.SS.trdata$phy,x,model="ARD")
+saved.discrete.models<-rbind(saved.discrete.models,c("SSGT",AIC(fit.ER),AIC(fit.SYM),AIC(fit.ARD)))
+test<-c(AIC(fit.ER),AIC(fit.SYM),AIC(fit.ARD))
+num.min.AIC<-match(min(test),test)
+fit<-list(fit.ER,fit.SYM,fit.ARD)[[num.min.AIC]]
+
+fittedQ<-matrix(NA,length(fit$states),length(fit$states))
+fittedQ[]<-c(0,fit$rates)[fit$index.matrix+1]
+diag(fittedQ)<-0
+diag(fittedQ)<--rowSums(fittedQ)
+colnames(fittedQ)<-rownames(fittedQ)<-fit$states
+trees<-mclapply(1:loops.num,function(n,tree,x,fixedQ) make.simmap(tree,x,Q=fixedQ,nsim=sim.num),
+	tree=tree,x=x,fixedQ=fittedQ,mc.cores=num.cores)
+trees<-do.call(c,trees) ## combine trees
+if(!("multiSimmap"%in%class(trees))) class(trees)<-c("multiSimmap",class(trees))
+reconstruction.ssgt<-trees
+
+
+```
+                                                                                                                                      Strict Folivore Definition
+```{r}
+########################
+#Fol.Non.Fol.Strict Diet Categories
+#reconstruction.FoDCS <- ace(as.factor(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Fol.Non.Fol.Strict), BrBo.Diet.DC.GS.SS.AP.trdata$phy, type = "d")
+
+reconstruction.FoDCS <- as.vector(paste(BrBo.diet.trdata$dat$Fol.Non.Fol.Strict))
+names(reconstruction.FoDCS)<-BrBo.diet.trdata$phy$tip.label
+#reconstruction.FoDCS<-make.simmap(BrBo.Diet.DC.GS.SS.AP.trdata$phy,reconstruction.FoDCS,model="ER",Q="empirical",nsim=sim.num)   
+tree<-BrBo.diet.trdata$phy
+x<-reconstruction.FoDCS
+
+## fit model so we don't have to repeatedly recompute Q
+fit.ER<-fitMk(BrBo.diet.trdata$phy,x,model="ER")
+fit.SYM<-fitMk(BrBo.diet.trdata$phy,x,model="SYM")
+fit.ARD<-fitMk(BrBo.diet.trdata$phy,x,model="ARD")
+saved.discrete.models<-rbind(saved.discrete.models,c("FoDCS",AIC(fit.ER),AIC(fit.SYM),AIC(fit.ARD)))
+
+test<-c(AIC(fit.ER),AIC(fit.SYM),AIC(fit.ARD))
+num.min.AIC<-match(min(test),test)
+fit<-list(fit.ER,fit.SYM,fit.ARD)[[num.min.AIC]]
+
+
+fittedQ<-matrix(NA,length(fit$states),length(fit$states))
+fittedQ[]<-c(0,fit$rates)[fit$index.matrix+1]
+diag(fittedQ)<-0
+diag(fittedQ)<--rowSums(fittedQ)
+colnames(fittedQ)<-rownames(fittedQ)<-fit$states
+
+trees<-mclapply(1:loops.num,function(n,tree,x,fixedQ) make.simmap(tree,x,Q=fixedQ,nsim=sim.num),
+	tree=tree,x=x,fixedQ=fittedQ,mc.cores=num.cores)
+trees<-do.call(c,trees) ## combine trees
+if(!("multiSimmap"%in%class(trees))) class(trees)<-c("multiSimmap",class(trees))
+reconstruction.FoDCS<-trees
+
+```
+
+```{r}
+########################
+#Fol.Non.Fol.Per Diet Categories
+#reconstruction.FoDC <- ace(as.factor(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Fol.Non.Fol.Per), BrBo.Diet.DC.GS.SS.AP.trdata$phy, type = "d")
+
+reconstruction.FoDC <- as.vector(paste(BrBo.diet.trdata$dat$Fol.Non.Fol.Per))
+names(reconstruction.FoDC)<-BrBo.diet.trdata$phy$tip.label
+#reconstruction.FoDC<-make.simmap(BrBo.Diet.DC.GS.SS.AP.trdata$phy,reconstruction.FoDC,model="ER",Q="empirical",nsim=sim.num)   
+tree<-BrBo.Diet.DC.GS.SS.AP.trdata$phy
+x<-reconstruction.FoDC
+
+## fit model so we don't have to repeatedly recompute Q
+fit.ER<-fitMk(BrBo.diet.trdata$phy,x,model="ER")
+fit.SYM<-fitMk(BrBo.diet.trdata$phy,x,model="SYM")
+fit.ARD<-fitMk(BrBo.diet.trdata$phy,x,model="ARD") #Slightly modified code
+
+#num.cores=parallel::detectCores()-2
+
+#system.time(
+#fit.ARD<-fitMk(BrBo.Diet.DC.GS.SS.AP.trdata$phy,x,model="ARD",ncores=num.cores)) #Original Code
+
+#system.time(
+#fit.ARD<-fitMk(BrBo.Diet.DC.GS.SS.AP.trdata$phy,x,model="ARD"))
+
+#cl = makeCluster(parallel::detectCores()-2) 
+#system.time(
+#fit.ARD<-fitMk(BrBo.Diet.DC.GS.SS.AP.trdata$phy,x,model="ARD")) #Slightly modified code
+
+#system.time(
+#fit.ARD<-fitMk(BrBo.Diet.DC.GS.SS.AP.trdata$phy,x,model="ARD")) #Slightly modified code
+
+#system.time(
+#fit.ARD<-fitMk(BrBo.Diet.DC.GS.SS.AP.trdata$phy,x,model="ARD"))
+
+#setDefaultCluster(cl=NULL); stopCluster(cl) 
+
+
+saved.discrete.models<-rbind(saved.discrete.models,c("FoDC",AIC(fit.ER),AIC(fit.SYM),AIC(fit.ARD)))
+
+test<-c(AIC(fit.ER),AIC(fit.SYM),AIC(fit.ARD))
+num.min.AIC<-match(min(test),test)
+fit<-list(fit.ER,fit.SYM,fit.ARD)[[num.min.AIC]]
+
+
+fittedQ<-matrix(NA,length(fit$states),length(fit$states))
+fittedQ[]<-c(0,fit$rates)[fit$index.matrix+1]
+diag(fittedQ)<-0
+diag(fittedQ)<--rowSums(fittedQ)
+colnames(fittedQ)<-rownames(fittedQ)<-fit$states
+
+trees<-mclapply(1:loops.num,function(n,tree,x,fixedQ) make.simmap(tree,x,Q=fixedQ,nsim=sim.num),
+	tree=tree,x=x,fixedQ=fittedQ,mc.cores=num.cores)
+trees<-do.call(c,trees) ## combine trees
+if(!("multiSimmap"%in%class(trees))) class(trees)<-c("multiSimmap",class(trees))
+reconstruction.FoDC<-trees
+
+```
+
+```{r}
+########################
+#Frugivore Diet Categories
+#reconstruction.FrDC <- ace(as.factor(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Frug.Non.Frug.Per ), BrBo.Diet.DC.GS.SS.AP.trdata$phy, type = "d")
+
+reconstruction.FrDC <- as.vector(BrBo.diet.trdata$dat$Frug.Non.Frug.Per)
+names(reconstruction.FrDC)<-BrBo.diet.trdata$phy$tip.label
+#reconstruction.FrDC<-make.simmap(BrBo.Diet.DC.GS.SS.AP.trdata$phy,reconstruction.FrDC,model="ER",Q="empirical",nsim=sim.num)   
+tree<-BrBo.diet.trdata$phy
+x<-reconstruction.FrDC
+
+## fit model so we don't have to repeatedly recompute Q
+fit.ER<-fitMk(BrBo.diet.trdata$phy,x,model="ER")
+fit.SYM<-fitMk(BrBo.diet.trdata$phy,x,model="SYM")
+fit.ARD<-fitMk(BrBo.diet.trdata$phy,x,model="ARD")
+saved.discrete.models<-rbind(saved.discrete.models,c("FrDC",AIC(fit.ER),AIC(fit.SYM),AIC(fit.ARD)))
+test<-c(AIC(fit.ER),AIC(fit.SYM),AIC(fit.ARD))
+num.min.AIC<-match(min(test),test)
+fit<-list(fit.ER,fit.SYM,fit.ARD)[[num.min.AIC]]
+
+fittedQ<-matrix(NA,length(fit$states),length(fit$states))
+fittedQ[]<-c(0,fit$rates)[fit$index.matrix+1]
+diag(fittedQ)<-0
+diag(fittedQ)<--rowSums(fittedQ)
+colnames(fittedQ)<-rownames(fittedQ)<-fit$states
+trees<-mclapply(1:loops.num,function(n,tree,x,fixedQ) make.simmap(tree,x,Q=fixedQ,nsim=sim.num),
+	tree=tree,x=x,fixedQ=fittedQ,mc.cores=num.cores)
+trees<-do.call(c,trees) ## combine trees
+if(!("multiSimmap"%in%class(trees))) class(trees)<-c("multiSimmap",class(trees))
+reconstruction.FrDC<-trees
+
+```
+
+```{r}
+########################
+#Group Size Categories
+#reconstruction.gsc <- ace(as.factor(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Cat.group.size), BrBo.Diet.DC.GS.SS.AP.trdata$phy, type = "d")
+
+reconstruction.gsc <- as.vector(BrBo.GS.trdata$dat$Cat.group.size)
+names(reconstruction.gsc)<-BrBo.GS.trdata$phy$tip.label
+#reconstruction.gsc<-make.simmap(BrBo.Diet.DC.GS.SS.AP.trdata$phy,reconstruction.gsc,model="ER",Q="empirical",nsim=sim.num)  
+tree<-BrBo.GS.trdata$phy
+x<-reconstruction.gsc
+
+## fit model so we don't have to repeatedly recompute Q
+fit.ER<-fitMk(BrBo.GS.trdata$phy,x,model="ER")
+fit.SYM<-fitMk(BrBo.GS.trdata$phy,x,model="SYM")
+fit.ARD<-fitMk(BrBo.GS.trdata$phy,x,model="ARD")
+saved.discrete.models<-rbind(saved.discrete.models,c("GSC",AIC(fit.ER),AIC(fit.SYM),AIC(fit.ARD)))
+test<-c(AIC(fit.ER),AIC(fit.SYM),AIC(fit.ARD))
+num.min.AIC<-match(min(test),test)
+fit<-list(fit.ER,fit.SYM,fit.ARD)[[num.min.AIC]]
+
+fittedQ<-matrix(NA,length(fit$states),length(fit$states))
+fittedQ[]<-c(0,fit$rates)[fit$index.matrix+1]
+diag(fittedQ)<-0
+diag(fittedQ)<--rowSums(fittedQ)
+colnames(fittedQ)<-rownames(fittedQ)<-fit$states
+trees<-mclapply(1:loops.num,function(n,tree,x,fixedQ) make.simmap(tree,x,Q=fixedQ,nsim=sim.num),
+	tree=tree,x=x,fixedQ=fittedQ,mc.cores=num.cores)
+trees<-do.call(c,trees) ## combine trees
+if(!("multiSimmap"%in%class(trees))) class(trees)<-c("multiSimmap",class(trees))
+reconstruction.gsc<-trees
+ 
+```
+
+```{r}
+########################
+#Social System
+#reconstruction.ss <- ace(as.factor(BrBo.Diet.DC.GS.SS.AP.trdata$dat$Social.System.DRclass), BrBo.Diet.DC.GS.SS.AP.trdata$phy, type = "d")
+
+reconstruction.ss <- as.vector(BrBo.SS.trdata$dat$Social.System.DRclass)
+names(reconstruction.ss)<-BrBo.SS.trdata$phy$tip.label
+#reconstruction.ss<-make.simmap(BrBo.Diet.DC.GS.SS.AP.trdata$phy,reconstruction.ss,model="ER",Q="empirical",nsim=sim.num)   
+tree<-BrBo.SS.trdata$phy
+x<-reconstruction.ss
+
+## fit model so we don't have to repeatedly recompute Q
+fit.ER<-fitMk(BrBo.SS.trdata$phy,x,model="ER")
+fit.SYM<-fitMk(BrBo.SS.trdata$phy,x,model="SYM")
+fit.ARD<-fitMk(BrBo.SS.trdata$phy,x,model="ARD")
+saved.discrete.models<-rbind(saved.discrete.models,c("SS",AIC(fit.ER),AIC(fit.SYM),AIC(fit.ARD)))
+test<-c(AIC(fit.ER),AIC(fit.SYM),AIC(fit.ARD))
+num.min.AIC<-match(min(test),test)
+fit<-list(fit.ER,fit.SYM,fit.ARD)[[num.min.AIC]]
+
+fittedQ<-matrix(NA,length(fit$states),length(fit$states))
+fittedQ[]<-c(0,fit$rates)[fit$index.matrix+1]
+diag(fittedQ)<-0
+diag(fittedQ)<--rowSums(fittedQ)
+colnames(fittedQ)<-rownames(fittedQ)<-fit$states
+trees<-mclapply(1:loops.num,function(n,tree,x,fixedQ) make.simmap(tree,x,Q=fixedQ,nsim=sim.num),
+	tree=tree,x=x,fixedQ=fittedQ,mc.cores=num.cores)
+trees<-do.call(c,trees) ## combine trees
+if(!("multiSimmap"%in%class(trees))) class(trees)<-c("multiSimmap",class(trees))
+reconstruction.ss<-trees
+
+
+
+########################
+#Mating System
+#reconstruction.ms <- ace(as.factor(BrBo.Diet.DC.GS.SS.AP.trdata$dat$ Mating.System), BrBo.Diet.DC.GS.SS.AP.trdata$phy, type = "d")
+
+reconstruction.ms <- as.vector(BrBo.SS.trdata$dat$ Mating.System)
+names(reconstruction.ms)<-BrBo.SS.trdata$phy$tip.label
+#reconstruction.ms<-make.simmap(BrBo.Diet.DC.GS.SS.AP.trdata$phy,reconstruction.ms,model="ER",Q="empirical",nsim=sim.num)   
+tree<-BrBo.SS.trdata$phy
+x<-reconstruction.ms
+
+## fit model so we don't have to repeatedly recompute Q
+fit.ER<-fitMk(BrBo.SS.trdata$phy,x,model="ER")
+fit.SYM<-fitMk(BrBo.SS.trdata$phy,x,model="SYM")
+fit.ARD<-fitMk(BrBo.SS.trdata$phy,x,model="ARD")
+saved.discrete.models<-rbind(saved.discrete.models,c("Mating System",AIC(fit.ER),AIC(fit.SYM),AIC(fit.ARD)))
+test<-c(AIC(fit.ER),AIC(fit.SYM),AIC(fit.ARD))
+num.min.AIC<-match(min(test),test)
+fit<-list(fit.ER,fit.SYM,fit.ARD)[[num.min.AIC]]
+
+fittedQ<-matrix(NA,length(fit$states),length(fit$states))
+fittedQ[]<-c(0,fit$rates)[fit$index.matrix+1]
+diag(fittedQ)<-0
+diag(fittedQ)<--rowSums(fittedQ)
+colnames(fittedQ)<-rownames(fittedQ)<-fit$states
+trees<-mclapply(1:loops.num,function(n,tree,x,fixedQ) make.simmap(tree,x,Q=fixedQ,nsim=sim.num),
+	tree=tree,x=x,fixedQ=fittedQ,mc.cores=num.cores)
+trees<-do.call(c,trees) ## combine trees
+if(!("multiSimmap"%in%class(trees))) class(trees)<-c("multiSimmap",class(trees))
+reconstruction.ms<-trees
+
+```
+
+```{r}
+####Activity Pattern
+reconstruction.ap <- as.vector(BrBo.GS.trdata$dat$Activity.Period.DN)
+names(reconstruction.ap)<-BrBo.GS.trdata$phy$tip.label
+#reconstruction.ms<-make.simmap(BrBo.Diet.DC.GS.SS.AP.trdata$phy,reconstruction.ms,model="ER",Q="empirical",nsim=sim.num)   
+tree<-BrBo.GS.trdata$phy
+x<-reconstruction.ap
+
+## fit model so we don't have to repeatedly recompute Q
+fit.ER<-fitMk(BrBo.GS.trdata$phy,x,model="ER")
+fit.SYM<-fitMk(BrBo.GS.trdata$phy,x,model="SYM")
+fit.ARD<-fitMk(BrBo.GS.trdata$phy,x,model="ARD")
+saved.discrete.models<-rbind(saved.discrete.models,c("AP",AIC(fit.ER),AIC(fit.SYM),AIC(fit.ARD)))
+test<-c(AIC(fit.ER),AIC(fit.SYM),AIC(fit.ARD))
+num.min.AIC<-match(min(test),test)
+fit<-list(fit.ER,fit.SYM,fit.ARD)[[num.min.AIC]]
+
+fittedQ<-matrix(NA,length(fit$states),length(fit$states))
+fittedQ[]<-c(0,fit$rates)[fit$index.matrix+1]
+diag(fittedQ)<-0
+diag(fittedQ)<--rowSums(fittedQ)
+colnames(fittedQ)<-rownames(fittedQ)<-fit$states
+trees<-mclapply(1:loops.num,function(n,tree,x,fixedQ) make.simmap(tree,x,Q=fixedQ,nsim=sim.num),
+	tree=tree,x=x,fixedQ=fittedQ,mc.cores=num.cores)
+trees<-do.call(c,trees) ## combine trees
+if(!("multiSimmap"%in%class(trees))) class(trees)<-c("multiSimmap",class(trees))
+reconstruction.ap<-trees
+
+
+```
+
+```{r}
+saved.discrete.models<-saved.discrete.models[-1,]
+```
+
+```{r}
+save.image("WS SIMMAP Only - Univariate 062822.RData")
+
+
+```
+
+```{r}
+write.csv(saved.discrete.models,"SBR2_Saved_SIMMAP_modeltesting_062522.csv")
+
+closeAllConnections()
+
+```
